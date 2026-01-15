@@ -139,7 +139,7 @@ $$L_{total} = \text{Data Loss} + \lambda \cdot R(W)$$
 | Type | Formula | Effect |
 | :--- | :--- | :--- |
 | **L2 (Ridge)** | $\sum W^2$ | **Diffuse:** Spreads weights out. Encourages using all pixels a little bit. |
-| **L1 (Lasso)** | $\sum |W|$ | **Sparse:** Forces many weights to zero. Acts as feature selection. |
+| **L1 (Lasso)** | $\sum \lvert W \rvert$ | **Sparse:** Forces many weights to zero. Acts as feature selection. |
 
 
 ## The Teacher: Optimization
@@ -148,7 +148,9 @@ We visualize the Loss Function as a rugged mountain landscape. We are standing a
 ### Gradient Descent
 1.  **Calculate Gradient ($\nabla W$):** Using calculus, we find the slope of the mountain. The gradient points **uphill** (direction of increasing error).
 2.  **Update Step:** We take a small step in the **opposite** direction (downhill).
-    $$W_{new} = W_{old} - \text{learning\_rate} \times \nabla W$$
+
+    $$W_{new} = W_{old} - \eta \cdot \nabla W$$
+     (Where $\eta$ is the learning rate)
 
 
 ## The Full Cycle: A Numerical Walkthrough
