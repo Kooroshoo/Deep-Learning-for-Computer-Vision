@@ -162,17 +162,14 @@ We will trace a single image through the pipeline to see the math in action.
 * **Weights ($W$):** Randomly initialized matrix.
 * **Hyperparameters:** Learning Rate $\eta=0.1$, Regularization $\lambda=0.1$.
 
-$$
-W = \begin{bmatrix}
-0.5 & -0.2 \\
--0.5 & 0.5
-\end{bmatrix}
-\quad
-\begin{aligned}
-\leftarrow \text{Row 0: Cat Weights} \\
-\leftarrow \text{Row 1: Dog Weights}
-\end{aligned}
-$$
+```
+Weight Matrix W                     Row Interpretation
+    ┌───────────────────┐            
+    │   0.5     -0.2    │   ───────>   Row 0: Cat Weights
+    │                   │
+    │  -0.5      0.5    │   ───────>   Row 1: Dog Weights
+    └───────────────────┘
+```
 
 ### Step A: Forward Pass (Compute Scores)
 We calculate $Wx$.
