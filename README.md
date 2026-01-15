@@ -1,8 +1,9 @@
-# k-Nearest Neighbors (k-NN) Classifier
 
-This project implements a k-Nearest Neighbors algorithm using a distance matrix approach. It predicts the labels of test images by identifying the closest examples from a training dataset.
+<details>
+<summary><h2><b> k-Nearest Neighbors (k-NN) Classifier </b></h2></summary>
+<br>
 
-
+The **k-Nearest Neighbors (k-NN) algorithm** functions as a memory-based classifier that utilizes a distance matrix framework. By measuring the mathematical proximity between unlabeled test data and a known training library, the algorithm assigns labels based on the most similar examples found in the existing dataset.
 
 ## Image Data and Pixel Shaping
 
@@ -86,13 +87,12 @@ In the event of a tie (e.g., one vote each for Dog, Cat, and Bird), the algorith
 Once every column is processed, the result is a vector of winning labels:
 `y_pred = [1, 0, 1]`
 
+</details>
 
 
----
-
-
-
-# Linear Classification: The Parametric Approach
+<details>
+<summary><h2><b> Linear Classification </b></h2></summary>
+<br>
 
 In algorithms like **k-Nearest Neighbors (k-NN)**, the computer "learns" by simply memorizing all training data. This makes training fast but prediction very slow.
 
@@ -232,3 +232,5 @@ Re-calculating scores with $W_{new}$:
 * **Winner:** Cat.
 
 **Conclusion:** The Backward Pass successfully identified the direction of steepest descent, and the Update Step corrected the model's weights to classify the image correctly.
+
+</details>
