@@ -210,7 +210,7 @@ Sum Data and Reg gradients.
 * **Dog Row:** $[1, 2] + [-0.1, 0.1] = \mathbf{[0.9, 2.1]}$
 
 ### Step D: Update (Learn)
-We nudge weights in the **opposite** direction of the gradient ($W_{new} = W - \eta \nabla W$).
+In the final step, we perform **Gradient Descent**. We "learn" by nudging the weights in the direction that reduces the error. We nudge weights in the **opposite** direction of the gradient ($W_{new} = W - \eta \nabla W$).
 
 * **New Cat Weights:**
     $$[0.5, -0.2] - (0.1 \times [-0.9, -2.04])$$
