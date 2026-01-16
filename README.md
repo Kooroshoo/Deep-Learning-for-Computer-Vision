@@ -191,10 +191,12 @@ We determine exactly how to change the weights to fix the error. We calculate $\
 The loss formula for this error is: $L = (W_{dog} \cdot x) - (W_{cat} \cdot x) + 1$.
 * **Incorrect Class (Dog):** The term is positive $(+ W_{dog} \cdot x)$. The derivative is **$+x$**.
     * *Intuition:* Increasing Dog weights increases the wrong score $\rightarrow$ increases Error. Slope is positive (Uphill).
-    * $\nabla_{data\_dog} = [1, 2]$
+    * *Math:* $\frac{\partial L}{\partial W_{dog}} = x$
+    * $\nabla_{data\_{dog}} = [1, 2]$
 * **Correct Class (Cat):** The term is negative $(- W_{cat} \cdot x)$. The derivative is **$-x$**.
     * *Intuition:* Increasing Cat weights increases the correct score $\rightarrow$ decreases Error. Slope is negative (Downhill).
-    * $\nabla_{data\_cat} = [-1, -2]$
+    * *Math:* $\frac{\partial L}{\partial W_{cat}} = -x$
+    * $\nabla_{data\_{cat}} = [-1, -2]$
 
 **2. Regularization Gradient Logic**
 The derivative of $\lambda W^2$ is $2\lambda W$.
