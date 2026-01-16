@@ -140,6 +140,8 @@ During training, we need to quantify "how bad" the current weights are. This mea
     * **$\sum L_i$:** The sum of losses for every individual image (calculated using method A or B).
     * We optimize the **average** loss so the model learns patterns common to all data, rather than just fixing one specific image.
 
+> **Note:** To improve performance and speed, we don't look at the entire dataset at once. Instead, we compute this average using a **small batch of images** (e.g., 32 or 64). This method is called **Stochastic Gradient Descent (SGD)**.
+
 ## Regularization
 If we strictly minimize Data Loss, the model might "cheat" by memorizing noise in the training data (Overfitting). We add a penalty term $R(W)$ to the loss.
 
