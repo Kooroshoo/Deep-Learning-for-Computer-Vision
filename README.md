@@ -129,7 +129,16 @@ During training, we need to quantify "how bad" the current weights are. This mea
 * **Philosophy:** "Turn scores into probabilities and maximize the probability of the correct class."
 * **Formula:**
     $$L_i = -\log\left(\frac{e^{s_{y_i}}}{\sum e^{s_j}}\right)$$
-* **Interpretation:** It never hits strictly zero loss; it always pushes the correct score higher towards infinity.
+* **Interpretation:** It never hits strictly zero loss; it always pushes the correct score higher towards infinity.z
+
+### C. The Final Objective (Data Loss)
+* **Philosophy:** "Minimize the average error across the entire dataset to find the best fit."
+* **Formula:**
+    $$L = \frac{1}{N} \sum_{i=1}^{N} L_i$$
+* **Interpretation:**
+    * **$N$:** The total number of images in the training batch.
+    * **$\sum L_i$:** The sum of losses for every individual image (calculated using method A or B).
+    * We optimize the **average** loss so the model learns patterns common to all data, rather than just fixing one specific image.
 
 ## Regularization
 If we strictly minimize Data Loss, the model might "cheat" by memorizing noise in the training data (Overfitting). We add a penalty term $R(W)$ to the loss.
