@@ -342,7 +342,7 @@ In a neural network, the signal passes through many layers ($x \to h \to s \to L
 * **Layer 1:** Receives the combined error and multiplies by its own derivative ($\frac{\partial h}{\partial x}$).
 
 ### How We Update the Weights (Optimization)
-Once we have the **Total Gradient**, we know which direction increases error. To learn, we go the opposite way.
+Once we have calculated the gradient **for a specific weight**, we know which direction increases error for that weight. To learn, we move that weight in the opposite direction.
 
 **The Formula (Gradient Descent):**
 $$W_{new} = W_{old} - (\eta \cdot \text{Gradient})$$
