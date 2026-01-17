@@ -329,6 +329,18 @@ At every step, we calculate the gradient using a simple logic that maps directly
 2.  **My Local Effect (Local Gradient):** The derivative of your specific math operation ($\frac{\partial y}{\partial x}$).
 3.  **Total Gradient:** You multiply them to find your total responsibility ($\frac{\partial L}{\partial x}$).
 
+### Expanded: The Chain Rule for a Series of Layers
+In a neural network, the signal passes through many layers ($x \to h \to s \to L$). To find the gradient at the start, we simply extend the chain.
+
+**The Formula:**
+
+> $$\frac{\partial L}{\partial x} = \frac{\partial L}{\partial s} \cdot \frac{\partial s}{\partial h} \cdot \frac{\partial h}{\partial x}$$
+
+**How it works (The "Domino Effect"):**
+* **Layer 3 (Loss):** Calculates the initial error ($\frac{\partial L}{\partial s}$).
+* **Layer 2:** Multiplies that error by its own local derivative ($\frac{\partial s}{\partial h}$) and passes it back.
+* **Layer 1:** Receives the combined error and multiplies by its own derivative ($\frac{\partial h}{\partial x}$).
+
 ### How We Update the Weights (Optimization)
 Once we have the **Total Gradient**, we know which direction increases error. To learn, we go the opposite way.
 
