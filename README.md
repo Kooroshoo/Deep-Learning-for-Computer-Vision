@@ -244,3 +244,202 @@ Re-calculating scores with $W_{new}$:
 **Conclusion:** The Backward Pass successfully identified the direction of steepest descent, and the Update Step corrected the model's weights to classify the image correctly.
 
 </details>
+
+<details>
+<summary><h2><b> Neural Networks (Multi-Layer Perceptrons) </b></h2></summary>
+<br>
+
+Linear Classifiers are limited: they learn a single "template" per class. If a problem is not linearly separable (like an XOR puzzle or a donut shape), a Linear Classifier fails completely.
+
+**Neural Networks** overcome this by stacking linear layers on top of each other, separated by non-linear functions. This allows the computer to warp the input space to classify complex, hierarchical patterns.
+
+## The Architecture: Layers and Neurons
+
+We treat the data as a signal flowing through a sequence of gates. The Activation Function must come **after** the linear summation to create the feature.
+
+```text
+      Input (x)                  Hidden Layer Steps (h)                       Output (s)
+    ┌───────────┐           ┌───────────────────┬──────────────┐            ┌────────────┐
+      Raw Data    ── W1 ──▶  1. Linear Sum (z)   2. Activation   ── W2 ──▶  Class Score 
+    └───────────┘           └───────────────────┴──────────────┘            └────────────┘
+                                      │                ▲
+                                      ▼                │
+                                  Result = Wx+b    Apply ReLU (f)
+```
+
+### 1. The Hidden Layer
+The "middle" of the sandwich. It takes raw inputs and transforms them into features.
+* **Formula:** $h = f(W_1x + b_1)$
+* **Interpretation:** The network creates its own internal understanding of the image before trying to classify it.
+
+### 2. The Activation Function ($f$)
+
+This is the most critical component. If we simply stacked linear layers without this, $W_2(W_1x)$ is just $W_{new}x$. The network would collapse back into a Linear Classifier. We need a "non-linearity" to break the line.
+
+**Common Choice: ReLU (Rectified Linear Unit)**
+* **Formula:** $f(x) = \max(0, x)$
+* **Philosophy:** "If the signal is positive, pass it through. If it's negative, kill it (set to zero)." It acts like a gatekeeper.
+
+### 3. The Output Layer
+Takes the hidden features ($h$) and produces the final class scores.
+* **Formula:** $s = W_2h + b_2$
+
+## The Teacher: Backpropagation (The Chain Rule)
+
+In a simple Linear Classifier, changing weights has a direct, obvious effect on the score. In a Neural Network, the weights in the early layers ($W_1$) are buried deep inside. They are like workers at the beginning of an assembly line—they don't see the final product.
+
+To fix mistakes, we use **Backpropagation** (The Chain Rule). Think of it as a "Blame Game."
+
+**The Logic:**
+1.  We calculate the total error (Loss) at the very end.
+2.  We ask the final layer: *"How much did you contribute to this error?"*
+3.  We pass that blame backward to the previous layer and ask: *"And how much was YOUR fault?"*
+
+### The Flow of Information
+We move forward to make predictions, and backward to learn.
+
+```text
+            FORWARD PASS (Make Prediction) ───────────────▶
+    
+      Input (x)            Hidden (h)           Output (s)          Loss (L)
+    ┌───────────┐        ┌────────────┐       ┌────────────┐      ┌──────────┐
+      Raw Data   ───W1──▶  Features   ───W2──▶ Raw Scores   ──▶   Calculate
+    │           │        │            │       │            │      │  Error   │
+    └───────────┘        └────────────┘       └────────────┘      └─────┬────┘
+          ▲                    ▲                    ▲                   │
+          │                    │                    │                   │
+          └────────────────────┴─── BACKWARD PASS ──┴───────────────────┘
+                                   (Assign Blame)
+          
+     "Hey W1, your features    "Hey W2, your scores    "Hey W2, the Loss is
+      contributed to the       were off! Change how     high! Adjust yourself
+      error W2 reported."      you weight h."           based on h."
+```
+
+### How to Calculate the Gradient (The Math)
+At every step, we calculate the gradient using a simple logic that maps directly to Calculus (The Chain Rule):
+
+> **Total Gradient = Incoming Blame × My Local Effect**
+
+**The Math (Chain Rule):**
+
+> $$\frac{\partial L}{\partial x} = \frac{\partial L}{\partial y} \cdot \frac{\partial y}{\partial x}$$
+
+1.  **Incoming Blame (Upstream Gradient):** The error signal coming from the layer ahead of you ($\frac{\partial L}{\partial y}$).
+2.  **My Local Effect (Local Gradient):** The derivative of your specific math operation ($\frac{\partial y}{\partial x}$).
+3.  **Total Gradient:** You multiply them to find your total responsibility ($\frac{\partial L}{\partial x}$).
+
+### How We Update the Weights (Optimization)
+Once we have the **Total Gradient**, we know which direction increases error. To learn, we go the opposite way.
+
+**The Formula (Gradient Descent):**
+$$W_{new} = W_{old} - (\eta \cdot \text{Gradient})$$
+
+* **$W_{old}$:** The current weight.
+* **$-$ (Minus):** Walk downhill (opposite to error).
+* **$\eta$ (Learning Rate):** The step size (e.g., 0.01).
+* **Gradient:** The slope we just calculated.
+
+## The Full Cycle: A Numerical Walkthrough
+
+We will trace a single data point through a 2-Layer Network to see the Chain Rule in action.
+
+### The Setup
+* **Input ($x$):** $2$ (Simple 1D input)
+* **Correct Target ($y$):** $1$
+* **Learning Rate ($\eta$):** $0.01$
+
+**Initial Weights (The Network State)**
+
+```text
+   Current Weights                  Connection Role
+ ┌───────────────────┐            
+ │    W1 =  3.0      │   ───────>   Input Layer  → Hidden Layer
+ │                   │
+ │    W2 = -2.0      │   ───────>   Hidden Layer → Output Layer
+ └───────────────────┘
+```
+
+### Step A: Forward Pass
+We calculate the score layer by layer.
+
+**1. Hidden Layer ($z$):**
+$$z = W_1 \cdot x$$
+$$z = 3.0 \cdot 2 = 6.0$$
+
+**2. Activation (ReLU) ($h$):**
+$$h = \max(0, z)$$
+Since $6.0 > 0$, the gate is open.
+$$h = 6.0$$
+
+**3. Output Layer ($s$):**
+$$s = W_2 \cdot h$$
+$$s = -2.0 \cdot 6.0 = -12.0$$
+
+**4. Compute Loss (L2 Square Loss):**
+We want the score ($s$) to be equal to the target ($y=1$).
+$$L = (s - y)^2$$
+$$L = (-12.0 - 1)^2 = (-13)^2 = 169$$
+*Current Status: Very High Error.*
+
+### Step B: Backward Pass (Backpropagation)
+We need to find $\nabla W_1$ and $\nabla W_2$. We start at the Loss and work backward.
+
+```text
+    Gradient Flow
+    Loss(169) ──▶ Output(-12) ──▶ Hidden(6) ──▶ Input(2)
+```
+
+**1. Gradient at Output (dL/ds):**
+How does Loss change if Score changes?
+Derivative of $(s-y)^2$ is $2(s-y)$.
+$$\nabla_{out} = 2(-12 - 1) = -26$$
+*Interpretation: The score is too low; we need a strong positive push.*
+
+**2. Gradient at W2 (The Output Weights):**
+Local Gradient: The input to this weight was $h$.
+$$\frac{\partial L}{\partial W_2} = \nabla_{out} \cdot h$$
+$$\nabla W_2 = -26 \cdot 6 = -156$$
+
+**3. Gradient at Hidden Layer (Passing the baton):**
+We need to figure out how much the *Hidden Output ($h$)* contributed to the error to reach $W_1$.
+$$\nabla h = \nabla_{out} \cdot W_2$$
+$$\nabla h = -26 \cdot -2.0 = +52$$
+
+**4. Gradient through ReLU:**
+Local Gradient: Derivative of ReLU is $1$ if $input > 0$, and $0$ if $input < 0$.
+Since our input $z$ was $6.0$ (positive), the gradient passes through unchanged.
+$$\nabla z = \nabla h \cdot 1 = 52$$
+
+**5. Gradient at W1 (The Input Weights):**
+Local Gradient: The input to this weight was $x$.
+$$\frac{\partial L}{\partial W_1} = \nabla z \cdot x$$
+$$\nabla W_1 = 52 \cdot 2 = 104$$
+
+### Step C: The Update (Gradient Descent)
+We nudge the weights opposite to the gradient.
+
+**Update W1:**
+$$W_{1_{new}} = 3.0 - (0.01 \cdot 104)$$
+$$W_{1_{new}} = 3.0 - 1.04 = 1.96$$
+*Effect: We decreased $W_1$ to reduce the magnitude of the signal flowing forward.*
+
+**Update W2:**
+$$W_{2_{new}} = -2.0 - (0.01 \cdot -156)$$
+$$W_{2_{new}} = -2.0 - (-1.56) = -2.0 + 1.56 = -0.44$$
+*Effect: We increased $W_2$ (made it less negative) to stop flipping the positive signal to a negative score.*
+
+### Final Verification
+Let's re-run the Forward Pass with the new weights:
+1.  $z = 1.96 \cdot 2 = 3.92$
+2.  $h = \text{ReLU}(3.92) = 3.92$
+3.  $s = -0.44 \cdot 3.92 \approx -1.72$
+
+**Result:**
+* Old Score: $-12.0$
+* New Score: $-1.72$
+* Target: $1.0$
+
+**Conclusion:** One single step of Backpropagation reduced the error drastically (from distance 13 to distance 2.7). The network learned to coordinate two different layers to achieve a common goal.
+
+</details>
