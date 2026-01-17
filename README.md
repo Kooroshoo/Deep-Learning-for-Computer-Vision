@@ -390,26 +390,32 @@ We move from **Right to Left** to find $\nabla W_1$ and $\nabla W_2$.
 
 **1. Gradient at Output (Box: `dL/ds`)**
 We start by deriving the Loss formula $(s - y)^2$.
-* **Math:** $\frac{\partial L}{\partial s} = 2 * (s - y)$
-* **Calc:** $2 * (-12 - 1) = \mathbf{-26}$
+* **Chain Rule:** $\frac{\partial L}{\partial s} = 2(s - y)$
+* **Math:** $2 * (-12 - 1)$
+* **Calc:** $\mathbf{-26}$
 * *Note: Negative gradient means we need a positive push.*
 
 **2. Gradient for W2 (Box: `d(W2)/dL`)**
-* **Math:** $\text{Incoming Blame} * \text{Input } h$
+* **Chain Rule:** $\frac{\partial L}{\partial W_2} = \frac{\partial L}{\partial s} \cdot h$
+* **Math:** $\text{Incoming Blame} (-26) * \text{Input } (6)$
 * **Calc:** $-26 * 6 = \mathbf{-156}$
-* **Action:** The gradient is very negative. To fix the error, we must **increase** $W_2$ significantly (move opposite to -156).
+* **Action:** The gradient is very negative. To fix the error, we must **increase** $W_2$ significantly.
 
 **3. Gradient at Hidden / ReLU (Box: `d(ReLU)`)**
-We need to pass the blame *through* the hidden layer to get to $W_1$.
-* **Math (Blame from W2):** $\text{Incoming} (-26) * \text{Weight} (-2) = 52$
-* **Math (ReLU Derivative):** The ReLU gate was OPEN (input $6 > 0$), so derivative is $1$.
-* **Calc:** $52 * 1 = \mathbf{52}$
-* *Why?* If the ReLU gate was closed (input < 0), the derivative would be 0. This effectively says "This neuron didn't fire, so don't blame it."
+We need to pass the blame *through* the hidden layer (across the wire $W_2$ and through the ReLU gate).
+* **Chain Rule:** $\frac{\partial L}{\partial z} = \frac{\partial L}{\partial s} \cdot W_2 \cdot f'(z)$
+* **Math:** $\text{Blame } (-26) * \text{Weight } (-2) * \text{ReLU } (1)$
+* **Calc:** $-26 * -2 * 1 = \mathbf{52}$
+* **Note 1 (The Weight):** We multiply by $W_2$ because it acts as the bridge for the error to travel back.
+* **Note 2 (The ReLU):** We multiply by **1** because the gate was **OPEN** ($x>0$). If closed, it would be 0.
+* *Why W2?* The weight is the path. Since $W_2$ multiplied the signal going forward, we must multiply by $W_2$ to send the blame back across that same path.
+* *Why ReLU?* If the ReLU gate was closed, the derivative is 0 ("Neuron didn't fire, so don't blame it").
 
 **4. Gradient for W1 (Box: `d(W1)/dL`)**
-* **Math:** $\text{Incoming Blame} * \text{Input } x$
+* **Chain Rule:** $\frac{\partial L}{\partial W_1} = \frac{\partial L}{\partial z} \cdot x$
+* **Math:** $\text{Incoming Blame } (52) * \text{Input } (2)$
 * **Calc:** $52 * 2 = \mathbf{104}$
-* **Action:** The gradient is positive. To fix the error, we must **decrease** $W_1$ (move opposite to 104) to reduce the signal strength.
+* **Action:** The gradient is positive. To fix the error, we must **decrease** $W_1$ to reduce the signal strength.
 
 ### Step C: The Update (Gradient Descent)
 We nudge the weights in the **opposite** direction of the gradient to reduce error.
