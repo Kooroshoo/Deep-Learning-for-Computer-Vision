@@ -341,6 +341,34 @@ In a neural network, the signal passes through many layers ($x \to h \to s \to L
 * **Layer 2:** Multiplies that error by its own local derivative ($\frac{\partial s}{\partial h}$) and passes it back.
 * **Layer 1:** Receives the combined error and multiplies by its own derivative ($\frac{\partial h}{\partial x}$).
 
+### Practical Application: How do I fix the Weights?
+To update a specific weight, we calculate the gradient **with respect to that weight**. This means we follow the chain of derivatives from the Loss backward and **stop exactly at the weight we are updating**.
+
+
+
+**1. To fix $W_2$:**
+We only need to look at the path from **Loss $\to$ Output $\to$ $W_2$**.
+> $$\frac{\partial L}{\partial W_2} = \frac{\partial L}{\partial s} \cdot \frac{\partial s}{\partial W_2}$$
+
+* **Logic:** Since $s = h \cdot W_2$, the derivative is just the **Input** ($h$).
+* **Result:** $\text{Incoming Blame }(\frac{\partial L}{\partial s}) \cdot \text{Input }(h)$
+
+**2. To fix $W_1$:**
+We must go deeper: **Loss $\to$ Output $\to$ Hidden ($h, z$) $\to$ $W_1$**.
+
+> $$\frac{\partial L}{\partial W_1} = \frac{\partial L}{\partial z} \cdot \frac{\partial z}{\partial W_1}$$
+
+* **Definition ($\frac{\partial L}{\partial z}$):** This symbol is a **shorthand** for the entire chain leading up to this node. It combines the Output Error, the Weight $W_2$, and the ReLU derivative:
+    $$\frac{\partial L}{\partial z} = \frac{\partial L}{\partial s} \cdot \frac{\partial s}{\partial h} \cdot f'(z)$$
+
+  $$\frac{\partial L}{\partial z} = \text{Incoming Blame} \cdot W_2 \cdot f'(z)$$
+
+  * **The Weight ($W_2$):** Scales the blame based on the connection strength ($\frac{\partial s}{\partial h}$). Since the final score is $s = h \cdot W_2$, the derivative is simply **$W_2$**.
+  * **The Switch ($f'$):** Acts as a gate based on the forward pass. if $z > 0$, multiply by **1** (pass); if $z \le 0$, multiply by **0** (block).
+
+* **Logic:** Since the local math is $z = x \cdot W_1$, the derivative $\frac{\partial z}{\partial W_1}$ is just the **Input** ($x$).
+* **Result:** $\frac{\partial L}{\partial z} \cdot x$
+
 ### How We Update the Weights (Optimization)
 Once we have calculated the gradient **for a specific weight**, we know which direction increases error for that weight. To learn, we move that weight in the opposite direction.
 
