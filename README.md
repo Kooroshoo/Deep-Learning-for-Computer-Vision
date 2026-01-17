@@ -345,101 +345,100 @@ $$W_{new} = W_{old} - (\eta \cdot \text{Gradient})$$
 We will trace a single data point through a 2-Layer Network to see the Chain Rule in action.
 
 ### The Setup
-* **Input ($x$):** $2$ (Simple 1D input)
-* **Correct Target ($y$):** $1$
-* **Learning Rate ($\eta$):** $0.01$
+We use simplified **scalars** (single numbers) instead of vectors to make the math transparent.
 
-**Initial Weights (The Network State)**
+| Component | Value | Description |
+| :--- | :--- | :--- |
+| **Input ($x$)** | `2` | A single feature (e.g., Pixel Brightness). |
+| **Target ($y$)** | `1` | The "Correct Answer" we want to predict. |
+| **Weights ($W$)** | `3.0`, `-2.0` | **W1** (Input → Hidden), **W2** (Hidden → Output). |
+| **Rate ($\eta$)** | `0.01` | The step size for Gradient Descent. |
 
-```text
-   Current Weights                  Connection Role
- ┌───────────────────┐            
- │    W1 =  3.0      │   ───────>   Input Layer  → Hidden Layer
- │                   │
- │    W2 = -2.0      │   ───────>   Hidden Layer → Output Layer
- └───────────────────┘
-```
-
-### Step A: Forward Pass
-We calculate the score layer by layer.
-
-**1. Hidden Layer ($z$):**
-$$z = W_1 \cdot x$$
-$$z = 3.0 \cdot 2 = 6.0$$
-
-**2. Activation (ReLU) ($h$):**
-$$h = \max(0, z)$$
-Since $6.0 > 0$, the gate is open.
-$$h = 6.0$$
-
-**3. Output Layer ($s$):**
-$$s = W_2 \cdot h$$
-$$s = -2.0 \cdot 6.0 = -12.0$$
-
-**4. Compute Loss (L2 Square Loss):**
-We want the score ($s$) to be equal to the target ($y=1$).
-$$L = (s - y)^2$$
-$$L = (-12.0 - 1)^2 = (-13)^2 = 169$$
-*Current Status: Very High Error.*
-
-### Step B: Backward Pass (Backpropagation)
-We need to find $\nabla W_1$ and $\nabla W_2$. We start at the Loss and work backward.
+### Step A: Forward Pass (Compute Score)
+We calculate the values from left to right.
 
 ```text
-    Gradient Flow
-    Loss(169) ──▶ Output(-12) ──▶ Hidden(6) ──▶ Input(2)
+    1. Input        2. Linear        3. ReLU         4. Score        5. Loss
+    ┌─────┐  W1=3   ┌─────┐         ┌─────┐  W2=-2   ┌─────┐         ┌─────┐
+    │  2  │──(* 3)─▶  6    ──(Max)─▶  6   ──(* -2)─▶ -12  ──(Diff)─▶ 169 
+    └─────┘         └─────┘         └─────┘          └─────┘         └─────┘
+       x               z               h                s               L
 ```
 
-**1. Gradient at Output (dL/ds):**
-How does Loss change if Score changes?
-Derivative of $(s-y)^2$ is $2(s-y)$.
-$$\nabla_{out} = 2(-12 - 1) = -26$$
-*Interpretation: The score is too low; we need a strong positive push.*
+1.  **Hidden ($z$):** $x * 3.0 = 6$
+2.  **Activation ($h$):** $\text{ReLU}(6) = 6$ (Gate is OPEN because $6 > 0$)
+3.  **Score ($s$):** $h * -2.0 = -12$
+4.  **Loss ($L$):** $(s - y)^2 = (-12 - 1)^2 = (-13)^2 = 169$
 
-**2. Gradient at W2 (The Output Weights):**
-Local Gradient: The input to this weight was $h$.
-$$\frac{\partial L}{\partial W_2} = \nabla_{out} \cdot h$$
-$$\nabla W_2 = -26 \cdot 6 = -156$$
+*Status: The model predicts -12. We wanted 1. Massive Error.*
 
-**3. Gradient at Hidden Layer (Passing the baton):**
-We need to figure out how much the *Hidden Output ($h$)* contributed to the error to reach $W_1$.
-$$\nabla h = \nabla_{out} \cdot W_2$$
-$$\nabla h = -26 \cdot -2.0 = +52$$
+### Step B: Backward Pass (Calculate Gradients)
+We move from **Right to Left** to find $\nabla W_1$ and $\nabla W_2$.
+**The Goal:** Minimize the Loss Formula: $L = (s - y)^2$
 
-**4. Gradient through ReLU:**
-Local Gradient: Derivative of ReLU is $1$ if $input > 0$, and $0$ if $input < 0$.
-Since our input $z$ was $6.0$ (positive), the gradient passes through unchanged.
-$$\nabla z = \nabla h \cdot 1 = 52$$
+**Logic:** `Total Gradient = Incoming Blame * Local Effect`
 
-**5. Gradient at W1 (The Input Weights):**
-Local Gradient: The input to this weight was $x$.
-$$\frac{\partial L}{\partial W_1} = \nabla z \cdot x$$
-$$\nabla W_1 = 52 \cdot 2 = 104$$
+```text
+    Step 4           Step 3           Step 2           Step 1
+   Pass Blame       Pass Blame       Pass Blame       Start Here
+     ◀────            ◀────            ◀────             │
+  ┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
+  │   104    │     │    52    │     │   -156   │     │   -26    │
+  └──────────┘     └──────────┘     └──────────┘     └──────────┘
+    d(W1)/dL         d(ReLU)          d(W2)/dL          dL/ds
+```
+
+**1. Gradient at Output (Box: `dL/ds`)**
+We start by deriving the Loss formula $(s - y)^2$.
+* **Math:** $\frac{\partial L}{\partial s} = 2 * (s - y)$
+* **Calc:** $2 * (-12 - 1) = \mathbf{-26}$
+* *Note: Negative gradient means we need a positive push.*
+
+**2. Gradient for W2 (Box: `d(W2)/dL`)**
+* **Math:** $\text{Incoming Blame} * \text{Input } h$
+* **Calc:** $-26 * 6 = \mathbf{-156}$
+* **Action:** The gradient is very negative. To fix the error, we must **increase** $W_2$ significantly (move opposite to -156).
+
+**3. Gradient at Hidden / ReLU (Box: `d(ReLU)`)**
+We need to pass the blame *through* the hidden layer to get to $W_1$.
+* **Math (Blame from W2):** $\text{Incoming} (-26) * \text{Weight} (-2) = 52$
+* **Math (ReLU Derivative):** The ReLU gate was OPEN (input $6 > 0$), so derivative is $1$.
+* **Calc:** $52 * 1 = \mathbf{52}$
+* *Why?* If the ReLU gate was closed (input < 0), the derivative would be 0. This effectively says "This neuron didn't fire, so don't blame it."
+
+**4. Gradient for W1 (Box: `d(W1)/dL`)**
+* **Math:** $\text{Incoming Blame} * \text{Input } x$
+* **Calc:** $52 * 2 = \mathbf{104}$
+* **Action:** The gradient is positive. To fix the error, we must **decrease** $W_1$ (move opposite to 104) to reduce the signal strength.
 
 ### Step C: The Update (Gradient Descent)
-We nudge the weights opposite to the gradient.
+We nudge the weights in the **opposite** direction of the gradient to reduce error.
 
-**Update W1:**
-$$W_{1_{new}} = 3.0 - (0.01 \cdot 104)$$
-$$W_{1_{new}} = 3.0 - 1.04 = 1.96$$
-*Effect: We decreased $W_1$ to reduce the magnitude of the signal flowing forward.*
+$$W_{1_{new}} = 3.0 - (0.01 \cdot 104) = \mathbf{1.96}$$
+*(We decreased W1 to reduce the magnitude of the signal at the start)*
 
-**Update W2:**
-$$W_{2_{new}} = -2.0 - (0.01 \cdot -156)$$
-$$W_{2_{new}} = -2.0 - (-1.56) = -2.0 + 1.56 = -0.44$$
-*Effect: We increased $W_2$ (made it less negative) to stop flipping the positive signal to a negative score.*
+$$W_{2_{new}} = -2.0 - (0.01 \cdot -156) = \mathbf{-0.44}$$
+*(We increased W2 to stop it from flipping the score to negative)*
 
-### Final Verification
-Let's re-run the Forward Pass with the new weights:
-1.  $z = 1.96 \cdot 2 = 3.92$
-2.  $h = \text{ReLU}(3.92) = 3.92$
-3.  $s = -0.44 \cdot 3.92 \approx -1.72$
+### Final Verification: Did it actually work?
+We updated our weights to **$W_1 = 1.96$** and **$W_2 = -0.44$**.
+Now, let's run the **Forward Pass again** with the *same input* ($2$) but these *new weights* to see if the network learned.
 
-**Result:**
-* Old Score: $-12.0$
-* New Score: $-1.72$
-* Target: $1.0$
+**1. The New Forward Pass**
+* **Input:** $2$
+* **New Hidden ($h$):** $2 * 1.96 = \mathbf{3.92}$
+* **New Score ($s$):** $3.92 * -0.44 \approx \mathbf{-1.72}$
 
-**Conclusion:** One single step of Backpropagation reduced the error drastically (from distance 13 to distance 2.7). The network learned to coordinate two different layers to achieve a common goal.
+**2. The Comparison (Target = 1)**
+We want the score to be as close to **1** as possible.
+
+| State | Prediction | Distance from Target (Error) |
+| :--- | :--- | :--- |
+| **Before Learning** | `-12.00` | `13.00` (Huge miss) |
+| **After 1 Step** | `-1.72` | `2.72` (Much closer) |
+
+**Conclusion:**
+In just one single step of Backpropagation, we moved the prediction from -12 to -1.72. We reduced the error by **~79%**.
+*If we repeat this process 10-20 times (a "Training Loop"), the prediction will eventually land exactly on 1.0.*
 
 </details>
