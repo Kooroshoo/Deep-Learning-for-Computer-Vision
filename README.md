@@ -488,3 +488,207 @@ In just one single step of Backpropagation, we moved the prediction from -12 to 
 *If we repeat this process 10-20 times (a "Training Loop"), the prediction will eventually land exactly on 1.0.*
 
 </details>
+
+<details>
+<summary><h2><b> Convolutional Neural Networks (CNNs) </b></h2></summary>
+<br>
+
+While Multi-Layer Perceptrons (MLPs) are powerful, they have a major flaw when handling images: they destroy spatial structure. To feed an image into an MLP, you must "flatten" it (turn a 2D grid into a long line). The network loses the understanding that pixel (0,0) is next to pixel (0,1).
+
+**Convolutional Neural Networks (CNNs)** are designed to process data with a grid-like topology (like images). Instead of looking at the whole image at once, they scan it piece-by-piece to build a hierarchy of features.
+
+## The Intuition: The Scanning Flashlight
+
+Imagine you are in a dark room looking for a specific object (e.g., a "horizontal edge"). You have a small flashlight.
+* You don't flash the whole room at once.
+* You shine the light on the top-left corner, then slide it slightly to the right, scanning the entire room row by row.
+* Whenever the light hits a "horizontal edge," your detector beeps.
+
+In a CNN, the **Flashlight** is the **Filter (or Kernel)**, and the **Beep** is the **Activation**.
+
+## The Architecture: The Visual Cortex
+
+A CNN is typically a pipeline of three repeating stages, followed by a classifier.
+
+```text
+      Input Image             Feature Extraction (The Eye)            Classification (The Brain)
+    ┌─────────────┐      ┌───────────┬───────────┬───────────┐      ┌───────────┬────────────┐
+        Raw 2D       ──▶  1. Conv      2. ReLU    3. Pool     ──▶    4. Flat      5. Dense  
+    │   Pixels    │      │   Layer   │           │   Layer   │      │   Vector  │   Output   │
+    └─────────────┘      └───────────┴───────────┴───────────┘      └───────────┴────────────┘
+                              │            │           │                      ▲
+                              ▼            ▼           ▼                      │
+                        Detect Features   Gate      Shrink Image         Make Decision
+```
+
+### 1. The Convolution Layer (The Filter)
+The core building block. Instead of connecting every input to every neuron (like MLPs), we use a small **Filter** (or Kernel)—e.g., a $3\times3$ grid of weights—that slides over the input.
+* **Weight Sharing:** The *same* filter is used across the entire image. This means if the network learns to detect a "vertical line" in the top-left, it can detect it in the bottom-right using the same weights.
+* **The Math:** It performs a **Dot Product** (element-wise multiplication followed by a sum) between the filter weights and the patch of the image it currently covers.
+
+### 2. The Activation (ReLU)
+Just like in MLPs, we need non-linearity. We apply **ReLU** `f(x) = max(0, x)` to every pixel in the feature map.
+* **Purpose:** It acts as a gate. If the filter found a feature (positive value), the signal passes. If not (negative or zero), the signal is killed.
+
+### 3. The Pooling Layer (Downsampling)
+Convolution creates a precise map of *where* features are. Pooling summarizes this map to make the network robust to small movements (translation invariance) and to reduce the file size.
+* **Max Pooling:** We slide a window (usually $2\times2$) and keep only the **largest** number in that window.
+* **Philosophy:** "I don't need to know the pixel-perfect coordinate of the cat's ear, just that it's in this general quadrant."
+
+## The Mechanics: Sliding Windows & Hyperparameters
+
+To control how the filter scans the image, we adjust these knobs:
+
+1.  **Filter Size ($F$):** The dimensions of the scanning window (usually $3\times3$ or $5\times5$).
+2.  **Stride ($S$):** The step size.
+    * *Stride 1:* Slide 1 pixel at a time (High overlap, high detail).
+    * *Stride 2:* Skip 1 pixel every step (Reduces output size by half).
+3.  **Padding ($P$):** Adding a border of "fake" pixels (usually zeros) around the input so the filter can center over the corners.
+
+**Output Size Formula:**
+> $$\text{Output Size} = \frac{W - F + 2P}{S} + 1$$
+*(Where **W** is Input Width, **F** is Filter Size, **P** is Padding, **S** is Stride)*
+
+
+## Visualizing the Forward Pass (5x5 Input) 
+
+We will trace a signal from raw pixels to a final class score.
+
+**The Setup:**
+* **Input Image (X):** A **5x5** grid of pixels (Grayscale brightness 0-255).
+* **Filter/Kernel (K):** A **3x3** grid of weights.
+* **Stride:** 1.
+* **Padding:** 0.
+
+### Step 1: The Convolution Scan
+We slide the **3x3 Filter** over the **5x5 Image**.
+* **Output Size Math:** `(5 - 3)/1 + 1` = **3x3 Output**.
+
+**Snapshot 1: Top-Left Patch**
+The filter overlays the top-left 3x3 region. We perform the Dot Product.
+
+```text
+       INPUT IMAGE (5x5)              FILTER (3x3)
+    ┌───┬───┬───┬───┬───┐           ┌───┬───┬───┐
+    │ A │ B │ C │ . │ . │           │ w │ x │ w │
+    ├───┼───┼───┼───┼───┤           ├───┼───┼───┤
+    │ F │ G │ H │ . │ . │     x     │ x │ w │ x │
+    ├───┼───┼───┼───┼───┤           ├───┼───┼───┤
+    │ K │ L │ M │ . │ . │           │ w │ x │ w │
+    ├───┼───┼───┼───┼───┤           └───┴───┴───┘
+    │ . │ . │ . │ . │ . │
+    └───┴───┴───┴───┴───┘
+    
+    Calculation: (A*w) + (B*x) + (C*w) + ... + (M*w)
+    Result ──▶ Output Map pixel [0,0]
+```
+
+**Snapshot 2: Slide Right**
+We move 1 pixel to the right.
+
+```text
+       INPUT IMAGE (5x5)              FILTER (3x3)
+    ┌───┬───┬───┬───┬───┐           ┌───┬───┬───┐
+    │ . │ B │ C │ D │ . │           │ w │ x │ w │
+    ├───┼───┼───┼───┼───┤           ├───┼───┼───┤
+    │ . │ G │ H │ I │ . │     x     │ x │ w │ x │
+    ├───┼───┼───┼───┼───┤           ├───┼───┼───┤
+    │ . │ L │ M │ N │ . │           │ w │ x │ w │
+    ├───┼───┼───┼───┼───┤           └───┴───┴───┘
+    │ . │ . │ . │ . │ . │
+    └───┴───┴───┴───┴───┘
+
+    Calculation: Sum of products...
+    Result ──▶ Output Map pixel [0,1]
+```
+
+*(This process repeats 9 times total until we cover the whole image)*
+
+
+### Step 2: The Feature Map & Activation
+Let's assume the convolution is finished. We now have a **3x3 Feature Map**.
+We immediately apply **ReLU** (`max(0, x)`) to remove negative values.
+
+```text
+    Raw Feature Map (Z)         ReLU Activation (A)
+    ┌─────┬─────┬─────┐         ┌─────┬─────┬─────┐
+    │  10 │ -40 │  20 │         │  10 │   0 │  20 │
+    ├─────┼─────┼─────┤   ──▶  ├─────┼─────┼─────┤
+    │ -10 │  50 │  30 │         │   0 │  50 │  30 │
+    ├─────┼─────┼─────┤         ├─────┼─────┼─────┤
+    │   5 │  15 │ -90 │         │   5 │  15 │   0 │
+    └─────┴─────┴─────┘         └─────┴─────┴─────┘
+```
+
+### Step 3: Pooling (Downsampling)
+We apply **Max Pooling**. Let's use a 2x2 window with Stride 1 for demonstration (or usually Stride 2 to shrink it).
+*For simplicity here, let's just take the Global Max of the quadrants or shrink the 3x3 to a 2x2.*
+
+**Resulting Pooled Map:**
+```text
+    ┌─────┬─────┐
+    │  50 │  30 │
+    ├─────┼─────┤
+    │  15 │   5 │
+    └─────┴─────┘
+```
+
+### Step 4: Flatten & Predict
+We turn the grid into a vector and feed it to a standard Linear Layer.
+
+1.  **Flatten:** `[50, 30, 15, 5]`
+2.  **Dense Weights:** Multiply by classification weights.
+3.  **Score:** `0.8` (e.g., probability of "Cat").
+
+## The Backward Pass (Learning)
+
+The network predicted "Cat" (0.8). But the image was actually a "Dog".
+**We have an Error.** Now we must train the Filter to do a better job next time.
+
+### 1. Calculate the Loss
+We compare Prediction vs Target using a Loss Function (e.g., Cross Entropy or MSE).
+
+> **Loss = (Prediction - Target)²**
+
+### 2. Backpropagation (Passing the Blame)
+We send the error signal backwards through the network:
+1.  **Dense Layer:** "Hey, I weighted the 'ears' feature too high." (Update Dense Weights).
+2.  **Flatten/Pool:** Un-pool the error back to the Feature Map locations.
+3.  **ReLU:** If the pixel was negative (killed), it gets 0 blame. If positive, it passes the blame through.
+
+### 3. Updating the Filter (The Critical Step)
+This is where CNNs are special. We need to update the **3x3 Filter Weights**.
+
+**The Challenge:**
+The weight `W[0,0]` (top-left of filter) was used **9 times** during the scan. It contributed to the error in the top-left, top-right, center, etc.
+
+**The Solution (Accumulate Gradients):**
+To find the gradient for a specific filter weight, we sum up the blame from **every position** it touched.
+
+> **Gradient for Filter Weight (dw) = Sum of (Input Patch * Output Error)**
+
+**Visualizing the Update for Filter Pixel (0,0):**
+
+1.  **Scan 1:** It multiplied Input `A`. The Output Error at [0,0] was `E1`.
+    * *Gradient contribution:* `A * E1`
+2.  **Scan 2:** It multiplied Input `B`. The Output Error at [0,1] was `E2`.
+    * *Gradient contribution:* `B * E2`
+3.  **Scan 9:** ... and so on.
+
+**The Update Formula (Gradient Descent):**
+Once we have the total gradient for every pixel in the 3x3 filter, we update them:
+
+> **W_new = W_old - (Learning_Rate * Total_Gradient)**
+
+* **Result:** The filter slowly changes from random noise into a structured pattern (like an edge detector) that minimizes the error.
+
+## Why CNNs Learn Better (The "Shared Weights" Magic)
+
+In a standard Neural Network (MLP), if you trained it to recognize a cat in the **top-left** corner, it would learn specific weights for those top-left pixels. If you then moved the cat to the **bottom-right**, the MLP would fail—it has to learn "cat in bottom-right" as a totally new concept.
+
+**CNNs solve this via Parameter Sharing:**
+Because the **same Filter ($K$)** slides over the whole image:
+1.  **Efficiency:** We learn far fewer parameters (just the small filter weights).
+2.  **Translation Invariance:** Once the filter learns what an "Eye" looks like, it can find an eye *anywhere* in the image (top, bottom, left, or right).
+
+</details>
