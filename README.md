@@ -532,7 +532,7 @@ The core building block. Instead of connecting every input to every neuron (like
 > *Where **x** is the input pixel, **w** is the weight (filter), and **b** is the bias.*
 
 **Note: Batch Normalization**
-As data flows through the network, the distribution of values can shift wildly (e.g., one layer outputs values from -1 to 1, the next from -100 to 100), which makes training difficult. This is called "Internal Covariate Shift." In modern networks, a **Normalization** step is often added before or after the activation to stabilize the network. It recalibrates the data so the mean is $0$ and the variance is $1$.
+As data flows through the network, the distribution of values can shift wildly (e.g., one layer outputs values from -1 to 1, the next from -100 to 100), which makes training difficult. This is called "**Internal Covariate Shift**". In modern networks, a **Normalization** step is often added before or after the activation to stabilize the network. It recalibrates the data so the mean is $0$ and the variance is $1$.
 
 > **The Formula:**
 > $$y = \left( \frac{x - \text{Mean}(x)}{\sqrt{\text{Var}(x) + \epsilon}} \right) \cdot \gamma + \beta$$
