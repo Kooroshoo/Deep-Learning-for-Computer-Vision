@@ -766,6 +766,21 @@ Imagine the **Filter** is sliding over the **Input** again. We are watching **on
     └───┴───┴───┘
 ```
 
+You might notice that in a 4x4 image, the far-right pixel (let's call it `D`) and the bottom pixels never get touched by the top-left weight (`*`).
+
+```text
+    WHERE WEIGHT (*) CAN REACH:
+    ┌───┬───┬───┬──┐
+    │ A │ B │ C │ .│ <── This "." is never touched by (*) 
+    ├───┼───┼───┼──┤     because the filter would fall off!
+    │ F │ G │ H │ .│
+    ├───┼───┼───┼──┤
+    │ K │ L │ M │ .│
+    ├───┼───┼───┼──┤
+    │ . │ . │ . │ .│ <── This whole bottom row is "out of reach"
+    └───┴───┴───┴──┘     for the top-left weight (*).
+```
+
 **Replaying the Scan:**
 
 **1. Position 1 (Top-Left)**
@@ -812,6 +827,24 @@ The filter slides again. Weight `*` is on top of pixel `C`.
               ▲                              ▲
               └── "I touched C"              └── "And we made Error E3"
 ```
+
+**4. Position 4 (New Row - Slide Down)**
+The filter resets to the left and moves down one row. Weight `*` is now on top of pixel `F`.
+* **Contribution:** $F \cdot E_{4}$
+
+```text
+    INPUT IMAGE                  OUTPUT ERROR MAP
+    ┌───┬───┬───┬──┐             ┌────┬────┬────┐
+    │ . │ . │ . │ .│             │ .  │ .  │ .  │
+    ├───┼───┼───┼──┤             ├────┼────┼────┤
+    │ F │ . │ . │ .│             │ E4 │ .  │ .  │
+    ├───┼───┼───┼──┤             ├────┼────┼────┤
+    │ . │ . │ . │ .│             │ .  │ .  │ .  │
+      ▲                            ▲
+      └── "I touched F"            └── "And we made Error E4"
+```
+
+*(This continues for G, H, K, L, M...)*
 
 **The Final Calculation**
 We sum up every interaction to find the **Total Gradient**.
