@@ -543,7 +543,7 @@ To control how the filter scans the image, we adjust these knobs:
 2.  **Stride ($S$):** The step size.
     * *Stride 1:* Slide 1 pixel at a time (High overlap, high detail).
     * *Stride 2:* Skip 1 pixel every step (Reduces output size by half).
-3.  **Padding ($P$):** Adding a border of "fake" pixels (usually zeros) around the input so the filter can center over the corners.
+3.  **Padding ($P$):** The process of adding a border of "fake" pixels (typically zeros) around the input image. This allows the filter to center over corner pixels and prevents the spatial dimensions of the network from shrinking to zero as data propagates through deep layers.
 
 **Output Size Formula:**
 > $$\text{Output Size} = \frac{W - F + 2P}{S} + 1$$
