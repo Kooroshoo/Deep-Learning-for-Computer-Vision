@@ -763,69 +763,88 @@ Imagine the **Filter** is sliding over the **Input** again. We are watching **on
     │ * │ . │ . │   <── We are tracking ONLY this weight
     ├───┼───┼───┤
     │ . │ . │ . │
+    ├───┼───┼───┤
+    │ . │ . │ . │
     └───┴───┴───┘
 ```
 
-You might notice that in a 4x4 image, the far-right pixel (let's call it `D`) and the bottom pixels never get touched by the top-left weight (`*`).
+#### Note: 
+Since the image is **5x5** and the filter is **3x3**, the filter stops scanning before it falls off the edge.
+* The top-left weight (`*`) can never reach the far right columns or the bottom rows.
 
 ```text
     WHERE WEIGHT (*) CAN REACH:
-    ┌───┬───┬───┬──┐
-    │ A │ B │ C │ .│ <── This "." is never touched by (*) 
-    ├───┼───┼───┼──┤     because the filter would fall off!
-    │ F │ G │ H │ .│
-    ├───┼───┼───┼──┤
-    │ K │ L │ M │ .│
-    ├───┼───┼───┼──┤
-    │ . │ . │ . │ .│ <── This whole bottom row is "out of reach"
-    └───┴───┴───┴──┘     for the top-left weight (*).
+    ┌───┬───┬───┬───┬───┐
+    │ A │ B │ C │ . │ . │ <── Columns 4 & 5 are never touched
+    ├───┼───┼───┼───┼───┤     by (*) or the filter falls off!
+    │ F │ G │ H │ . │ . │
+    ├───┼───┼───┼───┼───┤
+    │ K │ L │ M │ . │ . │
+    ├───┼───┼───┼───┼───┤
+    │ . │ . │ . │ . │ . │ <── Rows 4 & 5 are "out of reach"
+    ├───┼───┼───┼───┼───┤     for the top-left weight (*).
+    │ . │ . │ . │ . │ . │
+    └───┴───┴───┴───┴───┘
 ```
 
-**Replaying the Scan:**
+#### Replaying the Scan:
 
 **1. Position 1 (Top-Left)**
 The filter sits on the start of the image. Our weight `*` is on top of pixel `A`.
-* **The Error here:** $E_{1}$ (From Output[0,0])
 * **Contribution:** $A \cdot E_{1}$
 
 ```text
-    INPUT IMAGE                  OUTPUT ERROR MAP
-    ┌───┬───┬───┬──┐             ┌────┬────┬────┐
-    │ A │ . │ . │ .│             │ E1 │ .  │ .  │
-    ├───┼───┼───┼──┤             ├────┼────┼────┤
-    │ . │ . │ . │ .│             │ .  │ .  │ .  │
-      ▲                            ▲
-      └── "I touched A"            └── "And we made Error E1"
+    INPUT IMAGE (5x5)            OUTPUT ERROR MAP (3x3)
+    ┌───┬───┬───┬───┬───┐        ┌────┬────┬────┐
+    │ A │ . │ . │ . │ . │        │ E1 │ .  │ .  │
+    ├───┼───┼───┼───┼───┤        ├────┼────┼────┤
+    │ . │ . │ . │ . │ . │        │ .  │ .  │ .  │
+    ├───┼───┼───┼───┼───┤        ├────┼────┼────┤
+    │ . │ . │ . │ . │ . │        │ .  │ .  │ .  │
+    ├───┼───┼───┼───┼───┤        └────┴────┴────┘
+    │ . │ . │ . │ . │ . │
+    ├───┼───┼───┼───┼───┤
+    │ . │ . │ . │ . │ . │
+    └───┴───┴───┴───┴───┘
+
 ```
 
 **2. Position 2 (Slide Right)**
 The filter slides right. Now our weight `*` is on top of pixel `B`.
-* **The Error here:** $E_{2}$ (From Output[0,1])
 * **Contribution:** $B \cdot E_{2}$
 
 ```text
-    INPUT IMAGE                  OUTPUT ERROR MAP
-    ┌───┬───┬───┬──┐             ┌────┬────┬────┐
-    │ . │ B │ . │ .│             │ .  │ E2 │ .  │
-    ├───┼───┼───┼──┤             ├────┼────┼────┤
-    │ . │ . │ . │ .│             │ .  │ .  │ .  │
-          ▲                             ▲
-          └── "I touched B"             └── "And we made Error E2"
+    INPUT IMAGE (5x5)            OUTPUT ERROR MAP (3x3)
+    ┌───┬───┬───┬───┬───┐        ┌────┬────┬────┐
+    │ . │ B │ . │ . │ . │        │ .  │ E2 │ .  │
+    ├───┼───┼───┼───┼───┤        ├────┼────┼────┤
+    │ . │ . │ . │ . │ . │        │ .  │ .  │ .  │
+    ├───┼───┼───┼───┼───┤        ├────┼────┼────┤
+    │ . │ . │ . │ . │ . │        │ .  │ .  │ .  │
+    ├───┼───┼───┼───┼───┤        └────┴────┴────┘
+    │ . │ . │ . │ . │ . │
+    ├───┼───┼───┼───┼───┤
+    │ . │ . │ . │ . │ . │
+    └───┴───┴───┴───┴───┘
 ```
 
-**3. Position 3 (Slide Right)**
-The filter slides again. Weight `*` is on top of pixel `C`.
-* **The Error here:** $E_{3}$ (From Output[0,2])
+**3. Position 3 (End of Row)**
+The filter slides again. Weight `*` is on top of pixel `C`. It cannot go further right (to D) without the rest of the filter falling off the image.
 * **Contribution:** $C \cdot E_{3}$
 
 ```text
-    INPUT IMAGE                  OUTPUT ERROR MAP
-    ┌───┬───┬───┬──┐             ┌────┬────┬────┐
-    │ . │ . │ C │ .│             │ .  │ .  │ E3 │
-    ├───┼───┼───┼──┤             ├────┼────┼────┤
-    │ . │ . │ . │ .│             │ .  │ .  │ .  │
-              ▲                              ▲
-              └── "I touched C"              └── "And we made Error E3"
+    INPUT IMAGE (5x5)            OUTPUT ERROR MAP (3x3)
+    ┌───┬───┬───┬───┬───┐        ┌────┬────┬────┐
+    │ . │ . │ C │ . │ . │        │ .  │ .  │ E3 │
+    ├───┼───┼───┼───┼───┤        ├────┼────┼────┤
+    │ . │ . │ . │ . │ . │        │ .  │ .  │ .  │
+    ├───┼───┼───┼───┼───┤        ├────┼────┼────┤
+    │ . │ . │ . │ . │ . │        │ .  │ .  │ .  │
+    ├───┼───┼───┼───┼───┤        └────┴────┴────┘
+    │ . │ . │ . │ . │ . │
+    ├───┼───┼───┼───┼───┤
+    │ . │ . │ . │ . │ . │
+    └───┴───┴───┴───┴───┘
 ```
 
 **4. Position 4 (New Row - Slide Down)**
@@ -833,18 +852,40 @@ The filter resets to the left and moves down one row. Weight `*` is now on top o
 * **Contribution:** $F \cdot E_{4}$
 
 ```text
-    INPUT IMAGE                  OUTPUT ERROR MAP
-    ┌───┬───┬───┬──┐             ┌────┬────┬────┐
-    │ . │ . │ . │ .│             │ .  │ .  │ .  │
-    ├───┼───┼───┼──┤             ├────┼────┼────┤
-    │ F │ . │ . │ .│             │ E4 │ .  │ .  │
-    ├───┼───┼───┼──┤             ├────┼────┼────┤
-    │ . │ . │ . │ .│             │ .  │ .  │ .  │
-      ▲                            ▲
-      └── "I touched F"            └── "And we made Error E4"
+    INPUT IMAGE (5x5)            OUTPUT ERROR MAP (3x3)
+    ┌───┬───┬───┬───┬───┐        ┌────┬────┬────┐
+    │ . │ . │ . │ . │ . │        │ .  │ .  │ .  │
+    ├───┼───┼───┼───┼───┤        ├────┼────┼────┤
+    │ F │ . │ . │ . │ . │        │ E4 │ .  │ .  │
+    ├───┼───┼───┼───┼───┤        ├────┼────┼────┤
+    │ . │ . │ . │ . │ . │        │ .  │ .  │ .  │
+    ├───┼───┼───┼───┼───┤        └────┴────┴────┘
+    │ . │ . │ . │ . │ . │
+    ├───┼───┼───┼───┼───┤
+    │ . │ . │ . │ . │ . │
+    └───┴───┴───┴───┴───┘
 ```
 
 *(This continues for G, H, K, L, M...)*
+
+**9. Position 9 (The Final Step)**
+The filter reaches the very bottom-right valid position. Weight `*` is on pixel `M`. It cannot go down to P or U.
+* **Contribution:** $M \cdot E_{9}$
+
+```text
+    INPUT IMAGE (5x5)            OUTPUT ERROR MAP (3x3)
+    ┌───┬───┬───┬───┬───┐        ┌────┬────┬────┐
+    │ . │ . │ . │ . │ . │        │ .  │ .  │ .  │
+    ├───┼───┼───┼───┼───┤        ├────┼────┼────┤
+    │ . │ . │ . │ . │ . │        │ .  │ .  │ .  │
+    ├───┼───┼───┼───┼───┤        ├────┼────┼────┤
+    │ . │ . │ M │ . │ . │        │ .  │ .  │ E9 │
+    ├───┼───┼───┼───┼───┤        └────┴────┴────┘
+    │ . │ . │ . │ . │ . │                   
+    ├───┼───┼───┼───┼───┤                   
+    │ . │ . │ . │ . │ . │                   
+    └───┴───┴───┴───┴───┘       
+```
 
 **The Final Calculation**
 We sum up every interaction to find the **Total Gradient**.
