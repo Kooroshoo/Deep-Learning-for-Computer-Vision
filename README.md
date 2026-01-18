@@ -650,11 +650,94 @@ We compare Prediction vs Target using a Loss Function (e.g., Cross Entropy or MS
 
 > $$\text{Loss} = (\text{Prediction} - \text{Target})^2$$
 
-### 2. Backpropagation (Passing the Blame)
-We send the error signal backwards through the network:
-1.  **Dense Layer:** "Hey, I weighted the 'ears' feature too high." (Update Dense Weights).
-2.  **Flatten/Pool:** Un-pool the error back to the Feature Map locations.
-3.  **ReLU:** If the pixel was negative (killed), it gets 0 blame. If positive, it passes the blame through.
+$$\text{Gradient} = 2 \cdot (0.8 - 1.0) = \mathbf{-0.4}$$
+(We need to push the score UP by 0.4)
+
+### 2. Backpropagation (The Flow of Blame)
+The error signal (-0.4) travels backwards through the network layers.
+
+**A. Dense Layer (Distributing the Blame)**
+The Dense Layer connects the Flattened Vector to the Output. It asks: *"Which pixels contributed to this score?"*
+* If Weight 1 was high, it gets more blame.
+* If Weight 2 was zero, it gets no blame.
+
+```text
+    Output Gradient       Dense Weights        Result: Flattened Error Vector
+       [ -0.4 ]      x    [Matrices...]    =   [ 0.5, 0.0, -0.2, 0.8 ]
+```
+
+**B. Un-Flattening**
+We reshape the 1D vector back to the 2x2 grid.
+
+```text
+      Incoming Error (1D)           Reshape to 2D
+    [ 0.5, 0.0, -0.2, 0.1 ]  ──▶   ┌──────┬──────┐
+                                   │  0.5 │  0.0 │
+                                   ├──────┼──────┤
+                                   │ -0.2 │  0.1 │
+                                   └──────┴──────┘
+```
+
+### C. Backward through Max Pooling ("Un-Pooling")
+
+We need to map the small 2x2 error grid back to the original 3x3 input grid.
+
+**The Math Intuition (The Derivative):**
+* **The Rule:** "Did this pixel affect the output?"
+    * **If it was the Max:** Yes. Slope = **1**. (It takes all the blame).
+    * **If it was not:** No. Slope = **0**. (It gets no blame).
+
+**The Mapping:**
+We look at our "Forward Memory" to see which pixels won.
+* **Top-Left Window:** `50` was the winner (at `[1,1]`). It grabs the error `0.5`.
+* **Top-Right Window:** `30` was the winner (at `[1,2]`). It grabs the error `0.0`.
+* **Bottom-Left Window:** `5` was the winner (at `[2,0]`). It grabs the error `0.1`.
+* **Bottom-Right Window:** `15` was the winner (at `[2,1]`). It grabs the error `-0.2`.
+
+```text
+    1. RECALL FORWARD WINNERS       2. APPLY BLAME (Multiply by Slope)
+    (The Mask: 1 if Winner)         (Map 2x2 error back to 3x3)
+
+    ┌─────┬─────┬─────┐             ┌─────┬─────┬─────┐
+    │  0  │  0  │  0  │             │ 0.0 │ 0.0 │ 0.0 │
+    ├─────┼─────┼─────┤     ──▶     ├─────┼─────┼─────┤
+    │  0  │  1* │  1* │             │ 0.0 │ 0.5 │ 0.0 │
+    ├─────┼─────┼─────┤             ├─────┼─────┼─────┤
+    │  1* │  1* │  0  │             │ 0.1 │-0.2 │ 0.0 │
+    └─────┴─────┴─────┘             └─────┴─────┴─────┘              
+```
+
+### D. Backward through ReLU ("The Gate")
+
+We compare the **Incoming Blame** against the **Original Input** (before activation).
+
+**The Math Intuition (The Derivative):**
+* **The Rule:** "Was the neuron active?"
+    * **Positive Input ($x > 0$):** Slope = **1**. (Pass the blame).
+    * **Negative Input ($x \le 0$):** Slope = **0**. (Kill the blame).
+
+**The Calculation:**
+We perform an element-wise multiplication: `Incoming Blame * Mask`.
+
+```text
+    1. THE DERIVATIVE MASK          2. INCOMING BLAME        3. FINAL RESULT
+    (1 if Positive, 0 if Neg)       (From Un-Pooling)        (Output Error Map)
+
+    ┌─────┬─────┬─────┐             ┌─────┬─────┬─────┐      ┌─────┬─────┬─────┐
+    │  1  │  0  │  1  │             │ 0.0 │ 0.0 │ 0.0 │      │ 0.0 │ 0.0 │ 0.0 │
+    ├─────┼─────┼─────┤      x      ├─────┼─────┼─────┤   =  ├─────┼─────┼─────┤
+    │  0  │  1  │  1  │             │ 0.0 │ 0.5 │ 0.0 │      │ 0.0 │ 0.5 │ 0.0 │
+    ├─────┼─────┼─────┤             ├─────┼─────┼─────┤      ├─────┼─────┼─────┤
+    │  1  │  1  │  0  │             │ 0.1 │-0.2 │ 0.0 │      │ 0.1 │-0.2 │ 0.0 │
+    └─────┴─────┴─────┘             └─────┴─────┴─────┘      └─────┴─────┴─────┘
+```
+
+**Step-by-Step Check:**
+1.  **Pixel [1,1] (50):** Original was Positive (Slope 1). `1 * 0.5 = 0.5`. **(Passed)**
+2.  **Pixel [0,1] (-40):** Original was Negative (Slope 0). `0 * (Anything) = 0.0`. **(Killed)**
+3.  **Pixel [2,1] (15):** Original was Positive (Slope 1). `1 * -0.2 = -0.2`. **(Passed)**
+
+**Conclusion:** We now have the final **Output Error Map** (the grid on the right). We use this grid to update the Convolution Filter weights.
 
 ### 3. Updating the Filter (The Critical Step)
 This is where CNNs are special. We need to update the **3x3 Filter Weights**.
