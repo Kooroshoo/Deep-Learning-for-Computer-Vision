@@ -648,7 +648,7 @@ The network predicted "Cat" (0.8). But the image was actually a "Dog".
 ### 1. Calculate the Loss
 We compare Prediction vs Target using a Loss Function (e.g., Cross Entropy or MSE).
 
-> **Loss = (Prediction - Target)²**
+> $$\text{Loss} = (\text{Prediction} - \text{Target})^2$$
 
 ### 2. Backpropagation (Passing the Blame)
 We send the error signal backwards through the network:
@@ -665,20 +665,82 @@ The weight `W[0,0]` (top-left of filter) was used **9 times** during the scan. I
 **The Solution (Accumulate Gradients):**
 To find the gradient for a specific filter weight, we sum up the blame from **every position** it touched.
 
-> **Gradient for Filter Weight (dw) = Sum of (Input Patch * Output Error)**
+> $$\frac{\partial L}{\partial w} = \sum (\text{Input Patch} \cdot \text{Output Error})$$
 
-**Visualizing the Update for Filter Pixel (0,0):**
 
-1.  **Scan 1:** It multiplied Input `A`. The Output Error at [0,0] was `E1`.
-    * *Gradient contribution:* `A * E1`
-2.  **Scan 2:** It multiplied Input `B`. The Output Error at [0,1] was `E2`.
-    * *Gradient contribution:* `B * E2`
-3.  **Scan 9:** ... and so on.
+### Visualizing the Gradient Accumulation for $w_{0,0}$
+
+Imagine the **Filter** is sliding over the **Input** again. We are watching **only the Top-Left corner** of the filter (marked as `*`).
+
+**The Goal:** Find $\nabla w_{0,0}$ (How much to change the top-left weight).
+
+```text
+    THE FILTER (3x3)
+    ┌───┬───┬───┐
+    │ * │ . │ . │   <── We are tracking ONLY this weight
+    ├───┼───┼───┤
+    │ . │ . │ . │
+    └───┴───┴───┘
+```
+
+**Replaying the Scan:**
+
+**1. Position 1 (Top-Left)**
+The filter sits on the start of the image. Our weight `*` is on top of pixel `A`.
+* **The Error here:** $E_{1}$ (From Output[0,0])
+* **Contribution:** $A \cdot E_{1}$
+
+```text
+    INPUT IMAGE                  OUTPUT ERROR MAP
+    ┌───┬───┬───┬──┐             ┌────┬────┬────┐
+    │ A │ . │ . │ .│             │ E1 │ .  │ .  │
+    ├───┼───┼───┼──┤             ├────┼────┼────┤
+    │ . │ . │ . │ .│             │ .  │ .  │ .  │
+      ▲                            ▲
+      └── "I touched A"            └── "And we made Error E1"
+```
+
+**2. Position 2 (Slide Right)**
+The filter slides right. Now our weight `*` is on top of pixel `B`.
+* **The Error here:** $E_{2}$ (From Output[0,1])
+* **Contribution:** $B \cdot E_{2}$
+
+```text
+    INPUT IMAGE                  OUTPUT ERROR MAP
+    ┌───┬───┬───┬──┐             ┌────┬────┬────┐
+    │ . │ B │ . │ .│             │ .  │ E2 │ .  │
+    ├───┼───┼───┼──┤             ├────┼────┼────┤
+    │ . │ . │ . │ .│             │ .  │ .  │ .  │
+          ▲                             ▲
+          └── "I touched B"             └── "And we made Error E2"
+```
+
+**3. Position 3 (Slide Right)**
+The filter slides again. Weight `*` is on top of pixel `C`.
+* **The Error here:** $E_{3}$ (From Output[0,2])
+* **Contribution:** $C \cdot E_{3}$
+
+```text
+    INPUT IMAGE                  OUTPUT ERROR MAP
+    ┌───┬───┬───┬──┐             ┌────┬────┬────┐
+    │ . │ . │ C │ .│             │ .  │ .  │ E3 │
+    ├───┼───┼───┼──┤             ├────┼────┼────┤
+    │ . │ . │ . │ .│             │ .  │ .  │ .  │
+              ▲                              ▲
+              └── "I touched C"              └── "And we made Error E3"
+```
+
+**The Final Calculation**
+We sum up every interaction to find the **Total Gradient**.
+
+$$\nabla w_{0,0} = (A \cdot E_1) + (B \cdot E_2) + (C \cdot E_3) + \dots$$
+
+* **Logic:** "If pixel `A` was bright and we had a huge error `E1`, then weight `w` must change a lot. If pixel `B` was black (0), then `w` didn't contribute anything there, so ignore `E2`."
 
 **The Update Formula (Gradient Descent):**
 Once we have the total gradient for every pixel in the 3x3 filter, we update them:
 
-> **W_new = W_old - (Learning_Rate * Total_Gradient)**
+> $$W_{new} = W_{old} - (\text{Learning Rate} \cdot \text{Total Gradient})$$
 
 * **Result:** The filter slowly changes from random noise into a structured pattern (like an edge detector) that minimizes the error.
 
