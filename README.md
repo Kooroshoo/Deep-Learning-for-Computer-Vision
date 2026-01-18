@@ -540,9 +540,9 @@ Convolution creates a precise map of *where* features are. Pooling summarizes th
 To control how the filter scans the image, we adjust these knobs:
 
 1.  **Filter Size ($F$):** The dimensions of the scanning window (usually $3\times3$ or $5\times5$).
-2.  **Stride ($S$):** The step size.
-    * *Stride 1:* Slide 1 pixel at a time (High overlap, high detail).
-    * *Stride 2:* Skip 1 pixel every step (Reduces output size by half).
+2.  **Stride ($S$):** The step size of the filter as it slides across the input.
+    * **Stride 1:** Moves 1 pixel at a time, maintaining high overlap and preserving fine spatial detail.
+    * **Stride 2:** Moves 2 pixels at a time, skipping a pixel every step; this effectively reduces the output dimensions by half.
 3.  **Padding ($P$):** The process of adding a border of "fake" pixels (typically zeros) around the input image. This allows the filter to center over corner pixels and prevents the spatial dimensions of the network from shrinking to zero as data propagates through deep layers.
 
 **Output Size Formula:**
