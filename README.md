@@ -1095,6 +1095,86 @@ This combines an Encoder and a Decoder. We read the entire input sequence first 
      └──────────────────┘           └──────────────────┘
 ```
 
+### Example Application: Character-Level Language Modeling
+
+One of the most intuitive ways to understand RNNs is training them to generate text character-by-character.
+
+**The Goal:** Given a sequence of characters, predict the **next** character in the sequence.
+* **Input Sequence:** "h-e-l-l"
+* **Target Sequence:** "e-l-l-o"
+
+#### 1. Data Representation (One-Hot Encoding)
+RNNs cannot understand strings like "a" or "b". We must convert them into numbers.
+If our vocabulary is `[h, e, l, o]`, we use vectors:
+* `h`: `[1, 0, 0, 0]`
+* `e`: `[0, 1, 0, 0]`
+* `l`: `[0, 0, 1, 0]`
+* `o`: `[0, 0, 0, 1]`
+
+#### 2. The Architecture (Many-to-Many Synced)
+We treat this as a **Synced Many-to-Many** problem. At every time step, we feed in a character, and the network immediately tries to guess what comes next.
+
+
+
+**Visualizing the Training of "hello":**
+
+```text
+Time Step:       t=1           t=2           t=3           t=4
+              ┌───────┐     ┌───────┐     ┌───────┐     ┌───────┐
+TARGET (y):   │  "e"  │     │  "l"  │     │  "l"  │     │  "o"  │
+              └───────┘     └───────┘     └───────┘     └───────┘
+                  ▲             ▲             ▲             ▲
+              ┌───┴───┐     ┌───┴───┐     ┌───┴───┐     ┌───┴───┐
+PREDICTION:   │  "e"  │     │  "k"  │     │  "l"  │     │  "o"  │
+(Softmax)     │ 80%   │     │ 20%   │     │ 90%   │     │ 60%   │
+              └───┬───┘     └───┬───┘     └───┬───┘     └───┬───┘
+                  │             │             │             │
+              ┌───▼───┐     ┌───▼───┐     ┌───▼───┐     ┌───▼───┐
+HIDDEN (h):   │  RNN  │────▶  RNN    ────▶  RNN   ────▶  RNN  
+              └───┬───┘     └───┬───┘     └───┬───┘     └───┬───┘
+                  ▲             ▲             ▲             ▲
+              ┌───┴───┐     ┌───┴───┐     ┌───┴───┐     ┌───┴───┐
+INPUT (x):    │  "h"  │     │  "e"  │     │  "l"  │     │  "l"  │
+              └───────┘     └───────┘     └───────┘     └───────┘
+```
+
+* **At $t=1$:** The model sees "h". It calculates $h_1$. It tries to predict "e".
+* **At $t=2$:** The model sees "e" (and remembers "h" via $h_1$). It calculates $h_2$. It tries to predict "l".
+* **At $t=3$:** The model sees "l" (and remembers "he"). It tries to predict the second "l".
+
+#### 3. Inference: The "Autoregressive" Loop
+
+During training, we feed the correct answers. But when we want the model to **generate** new text on its own, we must connect the output to the input.
+
+**The Loop:**
+1.  The model predicts a character (e.g., "e").
+2.  We take that predicted "e".
+3.  We feed it right back into the bottom as the **Input** for the next step.
+
+
+
+```text
+      Step 1                Step 2                 Step 3
+    ┌────────┐            ┌────────┐             ┌────────┐
+    │  "e"   │───────────┐│  "l"   │────────────┐│  "l"   │
+    └────┬───┘           │└────┬───┘            │└────┬───┘
+         │ (Output y1)   │     │ (Output y2)    │     │
+         ▲               │     ▲                │     ▲
+    ┌────┴───┐           │┌────┴───┐            │┌────┴───┐
+    │  RNN   │           ││  RNN   │            ││  RNN   │
+    └────┬───┘           │└────┬───┘            │└────┬───┘
+         ▲               │     ▲                │     ▲
+    ┌────┴───┐           │┌────┴───┐            │┌────┴───┐
+    │  "h"   │           └▶  "e"               └▶  "l"   
+    └────────┘            └────────┘             └────────┘
+     (Seed)               (Prev Output           (Prev Output
+                           became Input)          became Input)
+```
+
+**Why this matters:**
+This is why text generation can "drift" or hallucinate. If the model makes a slight mistake at Step 5, that mistake is fed in as the "truth" for Step 6, which causes a bigger mistake in Step 7. This is called **Error Accumulation**.
+
+
 ### The Major Flaw: Vanishing Gradients
 RNNs suffer from "Short-term Memory." As information propagates through time, gradients shrink (or explode) as they are multiplied repeatedly (Chain Rule).
 * **The Result:** The network forgets early inputs. In a long paragraph, it might forget the subject of the sentence by the time it reaches the verb.
