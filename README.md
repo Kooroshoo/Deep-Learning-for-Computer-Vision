@@ -924,3 +924,153 @@ Because the **same Filter ($K$)** slides over the whole image:
 2.  **Translation Invariance:** Once the filter learns what an "Eye" looks like, it can find an eye *anywhere* in the image (top, bottom, left, or right).
 
 </details>
+
+
+
+<details>
+<summary><h2><b> Sequence Modeling with Neural Networks </b></h2></summary>
+<br>
+
+In Convolutional Neural Networks (CNNs), we learned how to handle **Spatial** data (images) using grids. But what happens when the data is **Sequential** (Time-Series, Text, Audio)?
+
+* **The Constraint:** In a sentence, order matters. *"Dog bites Man"* is very different from *"Man bites Dog."*
+* **The Context:** To understand a current word, you often need to remember what happened at the very beginning of the sentence. Standard MLPs and CNNs have no "memory" of the past; they process inputs in isolation.
+
+**Sequence Models** are designed to handle variable-length sequences ($x_1, x_2, \dots, x_t$) and maintain a "state" of history.
+
+## Part 1: Recurrent Neural Networks (RNNs)
+
+The fundamental idea of an RNN is **Persistence**. It processes data step-by-step, maintaining a "Hidden State" (memory) that acts as a summary of everything it has seen so far.
+
+### The Intuition: Reading a Book
+Imagine you are reading a sentence. You don't throw away your understanding of the previous words when you read a new one. You update your mental model of the sentence with every new word.
+
+* **Input ($x_t$):** The current word you are reading.
+* **Hidden State ($h_{t-1}$):** Your memory of the previous words.
+* **New Hidden State ($h_t$):** Your updated memory after reading the current word.
+
+### The Architecture: The Feedback Loop
+Unlike a feed-forward network, an RNN loops back on itself. When unrolled over time, it looks like a chain of repeating modules.
+
+```text
+       Time Step 1            Time Step 2            Time Step 3
+      ┌───────────┐          ┌───────────┐          ┌───────────┐
+      │  Input x1 │          │  Input x2 │          │  Input x3 │
+      └─────┬─────┘          └─────┬─────┘          └─────┬─────┘
+            │                      │                      │
+      ┌─────▼─────┐   h1     ┌─────▼─────┐   h2     ┌─────▼─────┐
+──h0─▶│    RNN    │─────────▶│    RNN    │─────────▶│    RNN    │──h3─▶ ...
+      │   Cell    │          │   Cell    │          │   Cell    │
+      └─────┬─────┘          └─────┬─────┘          └─────┬─────┘
+            │                      │                      │
+      ┌─────▼─────┐          ┌─────▼─────┐          ┌─────▼─────┐
+      │ Output y1 │          │ Output y2 │          │ Output y3 │
+      └───────────┘          └───────────┘          └───────────┘
+```
+
+### The Math: The Update Rule
+At every time step $t$, the RNN calculates a new hidden state $h_t$ using the current input $x_t$ and the previous state $h_{t-1}$.
+
+> **The Formula:**
+> $$h_t = \tanh(W_h h_{t-1} + W_x x_t + b)$$
+>
+> * $W_h$: Weights prioritizing the **History**.
+> * $W_x$: Weights prioritizing the **Current Input**.
+> * $\tanh$: Squashes values between -1 and 1 to keep gradients stable.
+
+### The Major Flaw: Vanishing Gradients
+RNNs suffer from "Short-term Memory." As information propagates through time, gradients shrink (or explode) as they are multiplied repeatedly (Chain Rule).
+* **The Result:** The network forgets early inputs. In a long paragraph, it might forget the subject of the sentence by the time it reaches the verb.
+* *Patch Solution:* **LSTMs (Long Short-Term Memory)** and **GRUs** introduced "gates" to explicitly decide what to remember and what to forget, but they are still slow because they must process data **sequentially** (step 1, then step 2, etc.).
+
+---
+
+## Part 2: The Attention Mechanism
+
+To solve the bottleneck of processing things one-by-one, researchers asked: *"What if, instead of remembering a compressed history, the model could look at the **entire** source sentence at once?"*
+
+This is **Attention**.
+
+### The Intuition: The Filing Cabinet (Query, Key, Value)
+Imagine you want to translate a sentence. You don't read the whole book linearly to find one concept. You have a query, and you look up relevant information.
+
+Attention is based on Database Retrieval concepts:
+1.  **Query ($Q$):** What I am looking for? (e.g., The current word I am trying to generate).
+2.  **Key ($K$):** What defines the data in the database? (e.g., The index/label of source words).
+3.  **Value ($V$):** The actual content? (e.g., The vector representation of source words).
+
+### The Calculation: Soft Search
+Instead of finding one exact match, Attention calculates a **Similarity Score** between the Query and *all* Keys. It then returns a **weighted average** of the Values.
+
+> **The Formula (Scaled Dot-Product Attention):**
+> $$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
+>
+> 1.  $QK^T$: Calculate similarity (dot product) between Query and all Keys.
+> 2.  $\text{softmax}$: Convert similarities into probabilities (weights sum to 1). "Pay 90% attention to word A, 10% to word B."
+> 3.  Multiply by $V$: Extract the weighted features.
+
+---
+
+## Part 3: The Transformer
+
+In 2017, the paper *"Attention Is All You Need"* changed everything. They proved we don't need Recurrence (RNNs) at all. We can process the **entire sequence in parallel** using only Attention.
+
+### 1. Positional Encoding
+Since Transformers don't process data in order (no time steps), they have no concept of "first" or "last."
+* **The Fix:** We inject a mathematical pattern (Sines and Cosines) into the input vectors to act as timestamps.
+* *Input = Word Embedding + Positional Encoding.*
+
+### 2. Self-Attention
+This is the heart of the Transformer. Every word in the sentence "looks at" every other word in the sentence to figure out context.
+
+**Example:** "The **animal** didn't cross the **street** because **it** was too tired."
+* When the model processes the word **"it"**, Self-Attention allows it to associate heavily with **"animal"** rather than "street."
+* An RNN would struggle here because "animal" was far back in the past. The Transformer sees the connection instantly.
+
+### 3. Multi-Head Attention
+Why look at the sentence only one way? The Transformer uses multiple sets of Q, K, V matrices (Heads) to look for different types of relationships simultaneously.
+* **Head 1:** Focuses on grammar (Subject-Verb).
+* **Head 2:** Focuses on pronouns (It $\to$ Animal).
+* **Head 3:** Focuses on adjacencies.
+
+### Visualizing the Architecture
+
+The Transformer typically consists of an **Encoder** (reads input) and a **Decoder** (generates output), or just a stack of Decoder layers (like GPT).
+
+```text
+      Input Sequence (All words at once)
+               │
+      ┌────────▼─────────┐
+      │ Positional Embed │  <-- Adds order info
+      └────────┬─────────┘
+               │
+      ┌────────▼─────────┐
+      │  Multi-Head Attn │  <-- "Every word looks at every other word"
+      └────────┬─────────┘      (Computes Q, K, V matrix math)
+               │
+      ┌────────▼─────────┐
+      │ Add & Normalize  │  <-- ResNet style skip connections
+      └────────┬─────────┘
+               │
+      ┌────────▼─────────┐
+      │ Feed Forward Net │  <-- Process features (MLP)
+      └────────┬─────────┘
+               │
+      ┌────────▼─────────┐
+      │ Add & Normalize  │
+      └────────┬─────────┘
+               │
+        Output Probabilities
+```
+
+### Summary Comparison
+
+| Feature | RNN / LSTM | Transformer |
+| :--- | :--- | :--- |
+| **Processing** | Sequential (Iterative) | Parallel (Simultaneous) |
+| **Long-Term Memory** | Poor (Vanishing Gradient) | Perfect (Direct Access via Attention) |
+| **Input handling** | $x_t$ depends on $h_{t-1}$ | All $x$ processed together |
+| **Speed** | Slow training (can't parallelize) | Fast training (GPU friendly) |
+| **Key Component** | Recurrent Loop | Self-Attention Mechanism |
+
+</details>
