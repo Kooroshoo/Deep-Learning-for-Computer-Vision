@@ -1201,6 +1201,67 @@ We process the sequence in chunks (e.g., 50 steps at a time).
    based on Chunk 1.            STOPS.
 ```
 
+### Application: Image Captioning (One-to-Many)
+
+This is one of the most famous applications of Deep Learning. It combines Computer Vision (CNNs) with Sequence Modeling (RNNs).
+
+**The Goal:** Input a static image $\to$ Output a descriptive sentence.
+* **Input:** A photo of a cat on a bed.
+* **Output:** "A striped cat sleeping on a white blanket."
+
+#### 1. The Architecture: Encoder-Decoder
+We treat this as a translation problem. Instead of translating French to English, we translate **Pixels to English**.
+
+* **The Encoder (The Eye):** A **CNN** (like ResNet). We remove the final classification layer (which says "Cat") and instead take the dense feature vector just before it. This vector contains the high-level summary of the image content.
+* **The Decoder (The Mouth):** An **RNN** (or LSTM). It takes the image vector and generates words one by one.
+
+
+
+#### 2. The Process: The "Handover"
+
+How do we connect a grid of pixels to a sequence of words?
+
+1.  **Featurize:** Feed the image into the CNN. Get a vector (e.g., length 512).
+2.  **Initialize:** We set the **Initial Hidden State ($h_0$)** of the RNN to be this image vector.
+    * *Intuition:* Usually, an RNN starts with an empty brain ($h_0 = 0$). Here, we "seed" the RNN's memory with the visual concept of the image before it speaks the first word.
+3.  **Generate:** We feed a special "Start" token to begin the sentence.
+
+#### 3. Visualizing the Flow
+
+```text
+      STEP 1: SEEING                STEP 2: SPEAKING
+
+    ┌──────────────┐
+    │  Raw Image   │
+    └──────┬───────┘
+           │
+    ┌──────▼───────┐
+    │  CNN Encoder │ (ResNet)
+    └──────┬───────┘
+           │
+           │ (Feature Vector)
+           │ "Context: Cat, Bed, Sleep"
+           ▼
+    ┌──────────────┐            ┌──────────────┐            ┌──────────────┐
+    │  RNN (t=1)   │───────────▶│  RNN (t=2)   │───────────▶│  RNN (t=3)   │
+    │  State = img │            │              │            │              │
+    └──────┬───────┘            └──────┬───────┘            └──────┬───────┘
+           │                           │                           │
+        Output:                     Output:                     Output:
+         "A" ─────────────────────▶  "Cat" ───────────────────▶  "..."
+        (Input to                   (Input to
+         next step)                  next step)
+```
+
+#### 4. Training Details (Teacher Forcing)
+During training, if the model guesses the wrong word at Step 1 (e.g., "Dog" instead of "A"), feeding that mistake into Step 2 creates a chain reaction of garbage.
+
+**The Solution:**
+We **ignore** the model's predicted output during training. Instead, we force the **Correct Answer (Ground Truth)** from the dataset as the input for the next time step.
+
+* **Input Sequence:** `<START>`, `A`, `striped`, `cat`
+* **Target Sequence:** `A`, `striped`, `cat`, `<END>`
+* **The Logic:** We ask the model, *"Given that the previous word WAS 'A' (regardless of what you guessed), what comes next?"*
 
 ### The Major Flaw: Vanishing Gradients
 RNNs suffer from "Short-term Memory." As information propagates through time, gradients shrink (or explode) as they are multiplied repeatedly (Chain Rule).
