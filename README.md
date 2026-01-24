@@ -959,7 +959,7 @@ Unlike a feed-forward network, an RNN loops back on itself. When unrolled over t
       └─────┬─────┘          └─────┬─────┘          └─────┬─────┘
             │                      │                      │
       ┌─────▼─────┐   h1     ┌─────▼─────┐   h2     ┌─────▼─────┐
-──h0─▶│    RNN    │─────────▶│    RNN    │─────────▶│    RNN    │──h3─▶ ...
+──h0─▶    RNN     ─────────▶     RNN     ─────────▶    RNN     ──h3─▶ ...
       │   Cell    │          │   Cell    │          │   Cell    │
       └─────┬─────┘          └─────┬─────┘          └─────┬─────┘
             │                      │                      │
@@ -977,13 +977,22 @@ At every time step $t$, the RNN calculates a new hidden state $h_t$ using the cu
 > * $W_h$: Weights prioritizing the **History**.
 > * $W_x$: Weights prioritizing the **Current Input**.
 > * $\tanh$: Squashes values between -1 and 1 to keep gradients stable.
+>
+### The Output Calculation
+Once the new hidden state $h_t$ is updated, we use it to generate the actual prediction for this time step (e.g., predicting the next word).
+
+> **The Formula:**
+> $$y_t = \text{Softmax}(W_y h_t + b_y)$$
+>
+> * $W_y$: Weights transforming the **Hidden State** into the **Output** dimension.
+> * $b_y$: The bias for the output layer.
+> * $\text{Softmax}$: Converts the raw numbers (logits) into probabilities (so they sum to 1).
 
 ### The Major Flaw: Vanishing Gradients
 RNNs suffer from "Short-term Memory." As information propagates through time, gradients shrink (or explode) as they are multiplied repeatedly (Chain Rule).
 * **The Result:** The network forgets early inputs. In a long paragraph, it might forget the subject of the sentence by the time it reaches the verb.
 * *Patch Solution:* **LSTMs (Long Short-Term Memory)** and **GRUs** introduced "gates" to explicitly decide what to remember and what to forget, but they are still slow because they must process data **sequentially** (step 1, then step 2, etc.).
 
----
 
 ## Part 2: The Attention Mechanism
 
