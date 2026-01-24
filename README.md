@@ -988,6 +988,45 @@ Once the new hidden state $h_t$ is updated, we use it to generate the actual pre
 > * $b_y$: The bias for the output layer.
 > * $\text{Softmax}$: Converts the raw numbers (logits) into probabilities (so they sum to 1).
 
+### Parameter Sharing (The "Recurrent" Magic)
+
+Just like CNNs share the same **Filter** across the whole image, RNNs share the same **Weights** across all time steps.
+
+* **The Logic:** You don't swap out your brain for a new one every time you read a new word. You use the *same* neural pathways (weights) to process word #1, word #2, and word #100.
+* **The Benefit:** This allows the network to process sequences of **any length**. Whether the input is 3 words or 3,000 words, the model size (file size) remains exactly the same.
+
+**Visualizing the Shared Weights:**
+
+Notice how the labels on the arrows ($W_x, W_h, W_y$) do **not** have a subscript $t$. They are constant matrices used repeatedly.
+
+```text
+       Input x1              Input x2              Input x3
+     ┌───────────┐         ┌───────────┐         ┌───────────┐
+     │           │         │           │         │           │
+     └─────┬─────┘         └─────┬─────┘         └─────┬─────┘
+           │ (Wx)                │ (Wx)                │ (Wx)   <-- SAME Matrix
+     ┌─────▼─────┐   (Wh)  ┌─────▼─────┐   (Wh)  ┌─────▼─────┐
+──h0─▶   RNN     ────────▶    RNN      ────────▶    RNN      ──h3─▶
+     │           │         │           │         │           │
+     └─────┬─────┘         └─────┬─────┘         └─────┬─────┘
+           │ (Wy)                │ (Wy)                │ (Wy)   <-- SAME Matrix
+     ┌─────▼─────┐         ┌─────▼─────┐         ┌─────▼─────┐
+     │ Output y1 │         │ Output y2 │         │ Output y3 │
+     └───────────┘         └───────────┘         └───────────┘
+```
+
+#### The Implication: Backpropagation Through Time (BPTT)
+
+
+Because $W_h$ is used repeatedly, when we train the network, we have to sum up the gradients from every time step.
+
+> $$\frac{\partial Loss}{\partial W} = \sum_{t=1}^{T} \frac{\partial Loss_t}{\partial W}$$
+
+**The Danger:**
+If $W_h$ is slightly larger than 1 (e.g., 1.1), multiplying it 100 times results in massive numbers ($1.1^{100} \approx 13,780$). This causes **Exploding Gradients**.
+
+If it is smaller than 1 (e.g., 0.9), the signal dies ($0.9^{100} \approx 0.00002$). This causes **Vanishing Gradients**.
+
 ### The Major Flaw: Vanishing Gradients
 RNNs suffer from "Short-term Memory." As information propagates through time, gradients shrink (or explode) as they are multiplied repeatedly (Chain Rule).
 * **The Result:** The network forgets early inputs. In a long paragraph, it might forget the subject of the sentence by the time it reaches the verb.
