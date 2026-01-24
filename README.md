@@ -1213,7 +1213,7 @@ This is one of the most famous applications of Deep Learning. It combines Comput
 We treat this as a translation problem. Instead of translating French to English, we translate **Pixels to English**.
 
 * **The Encoder (The Eye):** A **CNN** (like ResNet). We remove the final classification layer (which says "Cat") and instead take the dense feature vector just before it. This vector contains the high-level summary of the image content.
-* **The Decoder (The Mouth):** An **RNN** (or LSTM). It takes the image vector and generates words one by one.
+* **The Decoder (The Mouth):** An **RNN**. It takes the image vector and generates words one by one.
 
 
 
