@@ -1174,6 +1174,33 @@ During training, we feed the correct answers. But when we want the model to **ge
 **Why this matters:**
 This is why text generation can "drift" or hallucinate. If the model makes a slight mistake at Step 5, that mistake is fed in as the "truth" for Step 6, which causes a bigger mistake in Step 7. This is called **Error Accumulation**.
 
+### Optimization: Truncated Backpropagation Through Time (TBPTT)
+
+Training on very long sequences (e.g., a Wikipedia article with 10,000 words) presents two problems:
+1.  **Memory:** Storing the history for 10,000 steps to calculate gradients crashes the GPU.
+2.  **Stability:** Gradients over 10,000 steps will almost certainly vanish or explode.
+
+**The Solution:**
+We process the sequence in chunks (e.g., 50 steps at a time).
+1.  **Forward Pass:** We process steps 1-50 and compute the Loss.
+2.  **Backward Pass:** We calculate gradients **only** for these 50 steps and update weights.
+3.  **Carry Forward:** Crucially, we **keep the final Hidden State ($h_{50}$)** and pass it as the starting memory for the next chunk (steps 51-100), but we **cut the gradient connection** between the chunks so errors don't propagate back infinitely.
+
+```text
+       CHUNK 1 (Past)                CHUNK 2 (Present)
+    ┌──────────────────┐           ┌──────────────────┐
+    │                  │  State h  │                  │
+    │   RNN Steps 1-50 │──────────▶│  RNN Steps 51-99 │
+    │                  │           │                  │
+    └──────────────────┘           └────────┬─────────┘
+                                            │
+              ◀──────────(X)───────────────┘
+      Gradient Cut:             Backprop flows back
+   The error from Chunk 2       through Chunk 2 to
+   cannot change weights        update weights, then
+   based on Chunk 1.            STOPS.
+```
+
 
 ### The Major Flaw: Vanishing Gradients
 RNNs suffer from "Short-term Memory." As information propagates through time, gradients shrink (or explode) as they are multiplied repeatedly (Chain Rule).
