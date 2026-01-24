@@ -1192,9 +1192,9 @@ We process the sequence in chunks (e.g., 50 steps at a time).
     │                  │  State h  │                  │
     │   RNN Steps 1-50 │──────────▶│  RNN Steps 51-99 │
     │                  │           │                  │
-    └──────────────────┘           └────────┬─────────┘
-                                            │
-              ◀──────────(X)───────────────┘
+    └──────────────────┘           └──────────────────┘
+                                            
+              ◀────────────(X)─────────────────
       Gradient Cut:             Backprop flows back
    The error from Chunk 2       through Chunk 2 to
    cannot change weights        update weights, then
