@@ -1027,6 +1027,74 @@ If $W_h$ is slightly larger than 1 (e.g., 1.1), multiplying it 100 times results
 
 If it is smaller than 1 (e.g., 0.9), the signal dies ($0.9^{100} \approx 0.00002$). This causes **Vanishing Gradients**.
 
+### Variations of Sequence Architectures
+
+Not all sequence problems are the same. Sometimes we read a whole book to output a single score (Sentiment Analysis), and sometimes we look at one image to write a whole sentence (Captioning).
+
+We categorize RNNs based on their Input-to-Output mapping:
+
+#### 1. Many-to-One (The Encoder)
+We process a sequence of inputs ($x_1, x_2, \dots$) but ignore all outputs until the very last time step. The final hidden state acts as a summary of the entire sequence.
+
+* **Use Case:** Sentiment Analysis (Read movie review $\to$ Predict 1-5 Stars).
+* **The Logic:** "Read the whole sentence, digest it, and *then* tell me if it was happy or sad."
+
+```text
+      Input x1      Input x2      Input x3
+     ┌───────┐     ┌───────┐     ┌───────┐
+     │ Good  │     │ Movie │     │  !    │
+     └───┬───┘     └───┬───┘     └───┬───┘
+         │             │             │
+     ┌───▼───┐     ┌───▼───┐     ┌───▼───┐
+──h0─▶  RNN  ────▶   RNN   ────▶  RNN  
+     └───────┘     └───────┘     └───┬───┘
+                                     │
+                                 ┌───▼───┐
+                                 │ Pos.  │ (Output y)
+                                 └───────┘
+```
+
+#### 2. One-to-Many (The Decoder)
+We take a single static input (like an image or a genre) and generate a sequence of outputs ($y_1, y_2, \dots$).
+
+* **Use Case:** Image Captioning (Input Image $\to$ "A dog on grass") or Music Generation.
+* **The Logic:** The initial state is set by the image. The network then "hallucinates" one word at a time, feeding its own output back in as the next input.
+
+```text
+                  (Input x: Image Vector)
+                         │
+                     ┌───▼───┐
+      (Start) ──────▶│  RNN  │────▶ "A" (y1)
+                     └───┬───┘       │
+                         │           │
+           ┌─────────────┘           │
+           │         ┌───────┐       ▼
+           └────────▶│  RNN  │────▶ "Dog" (y2)
+                     └───┬───┘       │
+                         │           │
+           ┌─────────────┘           │
+           │         ┌───────┐       ▼
+           └────────▶│  RNN  │────▶ "..." (y3)
+                     └───────┘
+```
+
+#### 3. Many-to-Many (Async / Seq2Seq)
+This combines an Encoder and a Decoder. We read the entire input sequence first (Encoder), compress it into a "Context Vector," and then generate a new output sequence (Decoder).
+
+* **Use Case:** Machine Translation (English $\to$ French).
+* **Why Async?** The input "I love you" (3 words) might translate to "Je t'aime" (2 words or 3 depending on contraction). The lengths don't match, so we can't output step-by-step. We must wait for the full input before generating.
+
+
+
+```text
+       ENCODER (Read)                 DECODER (Write)
+     ┌──────────────────┐           ┌──────────────────┐
+     │                  │  Context  │                  │
+ x1 ─▶ RNN ─▶ RNN ─▶ RNN ──Vector──▶ RNN ─▶ RNN ─▶ RNN ─▶ y1, y2...
+     │                  │           │                  │
+     └──────────────────┘           └──────────────────┘
+```
+
 ### The Major Flaw: Vanishing Gradients
 RNNs suffer from "Short-term Memory." As information propagates through time, gradients shrink (or explode) as they are multiplied repeatedly (Chain Rule).
 * **The Result:** The network forgets early inputs. In a long paragraph, it might forget the subject of the sentence by the time it reaches the verb.
