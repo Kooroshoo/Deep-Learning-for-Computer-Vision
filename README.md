@@ -1272,9 +1272,9 @@ RNNs suffer from "Short-term Memory." As information propagates through time, gr
 <details>
 <summary><h2><b> The Transformer Architecture </b></h2></summary>
 
-<br>
 
 To solve the bottleneck of processing language word-by-word, researchers asked: *"What if, instead of remembering a compressed history, the model could look at the **entire** source sentence at once?"*
+
 
 ### 1. The Motivation: Breaking the Bottleneck
 
@@ -1331,40 +1331,44 @@ For every word, the model generates three new vectors (Personas) using learnable
 | **$V$** | **Value** | **The Content.** | What information do I pass on? (e.g., The vector meaning of 'cat'.) |
 
 #### 3.2 The Mechanism: The Spotlight Search
-The goal is to update the vector for **"sat"** by blending it with relevant words (finding out *who* sat).
-
-1.  **Calculate Scores ($Q \times K$):** The word "sat" broadcasts its Query. It checks the Keys of "The", "cat", and "sat".
-2.  **Multiply by Values ($V$):** It extracts information (Values) from the words that matched the query.
-
-##### Expanded Visual: The Matrix Calculation ($Scores \times V = Output$)
-We are calculating the new representation for the word **"sat"**.
-
-**Step A: The Dot Product (Matchmaking)**
-* $Q_{\text{sat}} \times K_{\text{The}} \rightarrow$ Low Score (0.05) $\rightarrow$ "The" is not the subject.
-* $Q_{\text{sat}} \times K_{\text{cat}} \rightarrow$ **High Score (0.80)** $\rightarrow$ "Cat" matches the search for a subject!
-* $Q_{\text{sat}} \times K_{\text{sat}} \rightarrow$ Low Score (0.15) $\rightarrow$ Self-reference is less important here.
-
-**Step B: The Weighted Sum (Blending)**
-We mix the **Content ($V$)** of the words into a new vector based on those scores.
+The goal is to update the vector for **"sat"** by blending it with relevant words (finding out *who* sat). This happens in two main phases: **Projection** (Creation) and **Calculation** (Usage).
 
 ```text
+STEP 1: PROJECTION (The Origin)
+────────────────────────────────────────────────────────────────────────────────
+   Input Vector      Weight Matrix          Resulting Vector
+   [ X("sat") ]  x   [   W_Q    ]   ===>   [ Q("sat") ]  (What "sat" looks for)
+   [ X("sat") ]  x   [   W_K    ]   ===>   [ K("sat") ]  (How "sat" identifies itself)
+   [ X("sat") ]  x   [   W_V    ]   ===>   [ V("sat") ]  (The content "sat" offers)
+      │                                          │
+      │ (Repeated for "The" and "cat" too)       │
+      └──────────────────────────────────────────┘
+                         │
+                         ▼
+STEP 2: CALCULATION (The Mechanism)
+────────────────────────────────────────────────────────────────────────────────
+(Now we use those Q, K, and V vectors to find context)
+
       [ ATTENTION SCORES (Weights) ]      [ VALUES (Content) ]       [ OUTPUT (Context) ]
-      (How much to care)                  (What information)         (The Enriched Word)
+      Calculated by: Q • K                 From Step 1 above          The Enriched Word
 
-       Col: "The"  "cat"  "sat"
-      ┌───────┬──────┬──────┐             ┌──────────────┐           ┌──────────────────┐
-Q:The │  0.6  │ 0.3  │ 0.1  │             │ V("The")     │           │ New "The" Vector │
-      ├───────┼──────┼──────┤             ├──────────────┤           ├──────────────────┤
-Q:cat │  0.2  │ 0.7  │ 0.1  │      x      │ V("cat")     │     =     │ New "cat" Vector │
-      ├───────┼──────┼──────┤             ├──────────────┤           ├──────────────────┤
-Q:sat │  0.05 │ 0.80 │ 0.15 │             │ V("sat")     │           │ New "sat" Vector │
-      └───────┴──────┴──────┘             └──────────────┘           └──────────────────┘
-         │                                       ▲
-         └─────────────(Focus on Q:sat)──────────┘
+     K: "The"  "cat"  "sat"
+      ┌───────┬──────┬──────┐            ┌──────────────┐           ┌──────────────────┐
+Q:The │  0.6  │ 0.3  │ 0.1  │            │ V("The")     │           │ New "The" Vector │
+      ├───────┼──────┼──────┤            ├──────────────┤           ├──────────────────┤
+Q:cat │  0.2  │ 0.7  │ 0.1  │      x     │ V("cat")     │     =     │ New "cat" Vector │
+      ├───────┼──────┼──────┤            ├──────────────┤           ├──────────────────┤
+Q:sat │  0.05 │ 0.80 │ 0.15 │            │ V("sat")     │           │ New "sat" Vector │
+      └───────┴──────┴──────┘            └──────────────┘           └──────────────────┘
+                 ^                            ^                              
+                 │                            │                              
+                 │                            └── This comes from X("sat") x W_V
+                 │
+                 └── This Score (0.80) comes from:
+                        Q("sat") • K("cat")
+                        (Step 1)   (Step 1)
+         
 
-     The Math for "sat":
-     (0.05 × V_The) + (0.80 × V_cat) + (0.15 × V_sat)  =  New "sat" Vector
-     [Tiny bit]     + [HUGE CHUNK]   + [Small bit]
 ```
 
 **Result:** The word "sat" is no longer just a verb. It has absorbed the meaning of "cat". The model now understands **"cat sat"** as a single combined concept.
