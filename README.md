@@ -938,7 +938,7 @@ In Convolutional Neural Networks (CNNs), we learned how to handle **Spatial** da
 
 **Sequence Models** are designed to handle variable-length sequences ($x_1, x_2, \dots, x_t$) and maintain a "state" of history.
 
-## Part 1: Recurrent Neural Networks (RNNs)
+## Recurrent Neural Networks (RNNs)
 
 The fundamental idea of an RNN is **Persistence**. It processes data step-by-step, maintaining a "Hidden State" (memory) that acts as a summary of everything it has seen so far.
 
@@ -1269,34 +1269,32 @@ RNNs suffer from "Short-term Memory." As information propagates through time, gr
 * *Patch Solution:* **LSTMs (Long Short-Term Memory)** and **GRUs** introduced "gates" to explicitly decide what to remember and what to forget, but they are still slow because they must process data **sequentially** (step 1, then step 2, etc.).
 
 
-## Part 2: The Attention Mechanism
+## The Transformer Architecture
 
 To solve the bottleneck of processing things one-by-one, researchers asked: *"What if, instead of remembering a compressed history, the model could look at the **entire** source sentence at once?"*
 
 This is **Attention**.
 
-### 1. The Bottleneck: Sequential vs. Parallel
+### 1. The Bottleneck (Sequential vs. Parallel)
 
 First, let's look at why the old way (RNNs) was slow and why Attention is fast.
 
-**The Old Way: RNN (The Relay Race)**
+#### 1.1 The Old Way: RNN (The Relay Race)
 Processing a sentence like "The cat sat" was like a relay race. To understand the last word, you had to wait for the baton to pass through every previous word.
 
     Step 1          Step 2           Step 3
     [ "The" ]       [ "cat" ]        [ "sat" ]
-       │               │                │
-       ▼               ▼                ▼
+        │               │                │
+        ▼               ▼                ▼
     ┌───────┐       ┌───────┐        ┌───────┐
     │ Cell  │──────▶│ Cell  │───────▶│ Cell  │
     └───────┘       └───────┘        └───────┘
     (State 1)       (State 2)        (State 3)
-                     Has info         Must wait for
-                     from "The"       Step 1 & 2
+                      Has info          Must wait for
+                      from "The"        Step 1 & 2
 
-**The New Way: Attention (The Group Meeting)**
+#### 1.2 The New Way: Attention (The Group Meeting)
 The Transformer does not wait. It drops the entire sentence onto a grid simultaneously. Every word can "talk" to every other word instantly, regardless of distance.
-
-
 
     Input Matrix (All words enter together)
     ┌───────────────────────┐
@@ -1307,8 +1305,24 @@ The Transformer does not wait. It drops the entire sentence onto a grid simultan
     │  Vector for "sat"     │  ──────────▶
     └───────────────────────┘
 
+### 2. The Missing Piece: Positional Encoding
 
-### 2. The Setup: Creating the "Personas" (Q, K, V)
+**Wait! If we process everything at once, how do we know the order?**
+
+In the "New Way" diagram above, the model sees "The", "cat", and "sat" simultaneously. To the model, "The cat sat" looks exactly the same as "sat cat The". Parallelism destroyed the sequence.
+
+To fix this, the Transformer injects a mathematical "timestamp" into every word vector *before* it enters the system. This is **Positional Encoding**.
+
+* **The Concept:** We add a unique wave pattern (Sine/Cosine frequencies) to the word vectors.
+* **The Result:** The word "cat" carries its meaning (animal) **plus** a unique vibration that signifies "I am at Position 2."
+
+$$v_{final} = v_{embedding} + v_{position}$$
+
+### 3. The Attention Mechanism
+
+Now that the words have entered (with their positions), we apply the core logic.
+
+#### 3.1 The Setup: Creating the "Personas" (Q, K, V)
 
 Before the model can "pay attention," it needs to prepare the data. We multiply every word by three separate weights ($W^Q, W^K, W^V$) to create three "personas" for each word.
 
@@ -1320,20 +1334,19 @@ Think of this like a dating app profile:
 **Diagram: From Word to Personas**
 Each word in the sentence undergoes this transformation separately but in parallel.
 
-                 Input Embedding      Weights       Role Vector
-                    (Vector)         (Matrix)
-                  ┌──────────┐     ┌──────────┐     ┌──────────┐
-                  │   "cat"  │  x  │    Wq    │  =  │Query(cat)│
-                  └────┬─────┘     └──────────┘     └──────────┘
-                       │           ┌──────────┐     ┌──────────┐
-                       ├─────────▶ │    Wk    │  =  │ Key(cat) │
-                       │           └──────────┘     └──────────┘
-                       │           ┌──────────┐     ┌──────────┐
-                       └─────────▶ │    Wv    │  =  │Value(cat)│
-                                   └──────────┘     └──────────┘
+                 Input Embedding       Weights         Role Vector
+                    (Vector)          (Matrix)
+                  ┌──────────┐       ┌──────────┐       ┌──────────┐
+                  │   "cat"  │  x    │    Wq    │  =    │Query(cat)│
+                  └────┬─────┘       └──────────┘       └──────────┘
+                       │             ┌──────────┐       ┌──────────┐
+                       ├─────────▶   │    Wk    │  =    │ Key(cat) │
+                       │             └──────────┘       └──────────┘
+                       │             ┌──────────┐       ┌──────────┐
+                       └─────────▶   │    Wv    │  =    │Value(cat)│
+                                     └──────────┘       └──────────┘
 
-
-### 3. The Process: The Spotlight Search
+#### 3.2 The Process: The Spotlight Search
 
 How does the model understand the word **"sat"** in "The cat sat"?
 It uses a **Spotlight**.
@@ -1344,65 +1357,57 @@ It uses a **Spotlight**.
     * It hits "cat" (Tag: Noun/Actor) $\rightarrow$ **Bright Light** (Exactly what I want).
 3.  **The Result:** Because the light is bright on "cat", the model absorbs the **Value** (Meaning) of "cat" into "sat". "Sat" now knows *who* sat.
 
-
-### 4. The Calculation: Step-by-Step
+#### 3.3 The Calculation: Step-by-Step
 
 Here is how the math flows for the specific word **"sat"**.
 
-#### Step A: Alignment (Score = $Q \cdot K$)
+##### Step A: Alignment (Score = $Q \cdot K$)
 The model asks: *"How relevant is 'sat' to 'The', 'cat', and 'sat'?"* It calculates the **Dot Product** (the brightness of the spotlight).
-
-
 
     Query: "sat"
          │
          ▼
-    ┌─────────────┐      ┌─────────────┐      ┌─────────────┐
-    │ Key: "The"  │      │ Key: "cat"  │      │ Key: "sat"  │
-    └──────┬──────┘      └──────┬──────┘      └──────┬──────┘
-           │ Match?             │ Match?             │ Match?
-           ▼                    ▼                    ▼
-        Score: 10            Score: 90            Score: 50
-      (Dim Light)          (Bright Light)       (Medium Light)
+    ┌─────────────┐       ┌─────────────┐       ┌─────────────┐
+    │ Key: "The"  │       │ Key: "cat"  │       │ Key: "sat"  │
+    └──────┬──────┘       └──────┬──────┘       └──────┬──────┘
+           │ Match?              │ Match?              │ Match?
+           ▼                     ▼                     ▼
+        Score: 10             Score: 90             Score: 50
+      (Dim Light)           (Bright Light)        (Medium Light)
 
-#### Step B: Normalization (Softmax)
+##### Step B: Normalization (Softmax)
 We use **Softmax** to turn raw scores into percentages that sum to 100%.
 
-       Score: 10            Score: 90            Score: 50
-           │                    │                    │
-           ▼                    ▼                    ▼
-      Weight: 0.05         Weight: 0.80         Weight: 0.15
-         (5%)                 (80%)                (15%)
+       Score: 10             Score: 90             Score: 50
+           │                     │                     │
+           ▼                     ▼                     ▼
+      Weight: 0.05          Weight: 0.80          Weight: 0.15
+         (5%)                  (80%)                 (15%)
 
-#### Step C: Weighted Sum (Multiply by $V$)
+##### Step C: Weighted Sum (Multiply by $V$)
 We take the **Values** (content) and combine them based on the brightness.
 
-    ┌─────────────┐      ┌─────────────┐      ┌─────────────┐
-    │ Value: "The"│      │ Value: "cat"│      │ Value: "sat"│
-    └──────┬──────┘      └──────┬──────┘      └──────┬──────┘
-           │ Keep 5%            │ Keep 80%           │ Keep 15%
-           ▼                    ▼                    ▼
+    ┌─────────────┐       ┌─────────────┐       ┌─────────────┐
+    │ Value: "The"│       │ Value: "cat"│       │ Value: "sat"│
+    └──────┬──────┘       └──────┬──────┘       └──────┬──────┘
+           │ Keep 5%             │ Keep 80%            │ Keep 15%
+           ▼                     ▼                     ▼
     [Tiny bit of The] +  [Big chunk of cat]  + [Small bit of sat]
-           │                    │                    │
+           │                     │                     │
            └────────────────────┼────────────────────┘
                                 │
                                 ▼
-                       ┌─────────────────┐
-                       │  New "Context"  │
-                       │ Vector for word │
-                       │      "sat"      │
-                       └─────────────────┘
+                        ┌─────────────────┐
+                        │  New "Context"  │
+                        │ Vector for word │
+                        │      "sat"      │
+                        └─────────────────┘
 
 > **Why this matters**
->By the time the data leaves this block, there are no longer isolated words.
->The vector  is no longer just "sat". It is a **hologram** of the entire event ("Cat-sitting-action").
+> By the time the data leaves this block, there are no longer isolated words.
+> The vector is no longer just "sat". It is a **hologram** of the entire event ("Cat-sitting-action").
 
-> **Why is this better than RNNs?**
-> In an RNN, the word "sat" only knew about "cat" because "cat" came *before* it.
-> In Attention, "sat" knows about "cat" because it **chose** to look at it. It is an active, intelligent selection of context.
-
-
-### 5. The "All-at-Once" View (Matrix Multiplication)
+#### 3.4 The "All-at-Once" View (Matrix Multiplication)
 
 The steps above showed how we process "sat". But remember, the Transformer processes "The", "cat", and "sat" **at the exact same time**.
 
@@ -1413,19 +1418,19 @@ It does this by stacking the vectors into a matrix. The "Scores" become a grid w
     Row = Query (Who is looking?)
     Col = Key (Who is being looked at?)
 
-             │   "The"   │   "cat"   │   "sat"   │
-    ─────────┼───────────┼───────────┼───────────┤
-    Q: "The" │   Self    │   High    │   Low     │
-             │           │  (Object) │           │
-    ─────────┼───────────┼───────────┼───────────┤
-    Q: "cat" │   High    │   Self    │   High    │
-             │ (Define)  │           │ (Action)  │
-    ─────────┼───────────┼───────────┼───────────┤
-    Q: "sat" │   Low     │   High    │   Self    │ <─ This is the row
-             │           │  (Actor)  │           │    we did in Step 4
-    ─────────┴───────────┴───────────┴───────────┘
+             │   "The"    │   "cat"    │   "sat"    │
+    ─────────┼────────────┼────────────┼────────────┤
+    Q: "The" │   Self     │   High     │   Low      │
+             │            │  (Object)  │            │
+    ─────────┼────────────┼────────────┼────────────┤
+    Q: "cat" │   High     │   Self     │   High     │
+             │ (Define)   │            │ (Action)   │
+    ─────────┼────────────┼────────────┼────────────┤
+    Q: "sat" │   Low      │   High     │   Self     │ <─ This is the row
+             │            │  (Actor)   │            │    we did in Step 3.3
+    ─────────┴────────────┴────────────┴────────────┘
 
-### The Final Result
+#### The Final Result
 By the end of this block, every word has a new vector.
 * The word **"sat"** now mathematically contains the concept of *action + the specific actor (cat)*.
 * The model did this without a loop, calculating the entire sentence in one giant matrix multiplication.
@@ -1433,7 +1438,35 @@ By the end of this block, every word has a new vector.
 > **The Formula (Scaled Dot-Product Attention):**
 > $$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
 
-###  From Attention to Training
+### 4. Scaling Up: Multi-Head Attention
+
+The process described above uses one single "brain" to focus on relationships. This is called **Single-Head Attention**.
+
+However, language is complex. A word might need to focus on two things at once:
+1.  **Grammar:** "sat" needs to look at "cat" (Subject-Verb agreement).
+2.  **Context:** "sat" needs to look at "mat" (Prepositional object).
+
+A single spotlight cannot shine in two directions at once. To solve this, Transformers use **Multi-Head Attention**.
+
+* We create 8 (or more) separate sets of $Q, K, V$ weights.
+* Head 1 focuses on Grammar.
+* Head 2 focuses on Tone.
+* Head 3 focuses on Entity References.
+* We run them all in parallel and stitch the results together at the end.
+
+### 5. The Architecture Glue: Add & Norm
+
+Between the layers of Attention and the Feed-Forward Networks, the Transformer uses two vital engineering tricks to allow the network to grow very deep.
+
+1.  **Residual Connections (Add):**
+    We take the original input vector and *add* it to the result of the Attention block.
+    $$Output = Attention(x) + x$$
+    *Why?* This creates a "highway" for information. If the Attention block gets confused, the model still retains the original word meaning.
+
+2.  **Layer Normalization (Norm):**
+    We mathematically "smooth out" the numbers to ensure they stay within a stable range (mean of 0, standard deviation of 1). This prevents the values from exploding or vanishing during training.
+
+### 6. From Attention to Training
 
 *"Once we have these Attention scores, how does this actually help the model learn?"*
 
@@ -1441,14 +1474,14 @@ The Attention Mechanism is just the **preprocessing step** (the "Ears"). The res
 
 Here is the flow of how the Attention output drives the learning process.
 
-### 1. The Output of Part 2: The Context Vector
+#### 6.1 The Output of Section 3: The Context Vector
 At the end of the Attention block, the word **"sat"** has been transformed.
 * **Before:** A static vector for "sat".
 * **After:** A rich vector containing "sat" + "cat" (Actor) + "The".
 
 The model now "knows" who sat. But it hasn't predicted anything yet.
 
-### 2. The Next Step: The "Brain" (Feed-Forward Network)
+#### 6.2 The Next Step: The "Brain" (Feed-Forward Network)
 This "Context Vector" is passed to a standard neural network layer.
 
 * **Input:** The "sat" vector (enriched with "cat").
@@ -1458,7 +1491,7 @@ This "Context Vector" is passed to a standard neural network layer.
     * *Inference:* "Small animals usually sit **ON** things (mat, lap, floor)."
 * **Output:** A vector ready for prediction.
 
-### 3. The Prediction (Projecting to Vocabulary)
+#### 6.3 The Prediction (Projecting to Vocabulary)
 The model takes the final vector and compares it against its entire dictionary (e.g., 50,000 words). It assigns a probability to every possible next word.
 
 * **Prediction:**
@@ -1466,8 +1499,7 @@ The model takes the final vector and compares it against its entire dictionary (
     * "down": 20%
     * "burger": 0.001%
 
-
-### 4. The "Learning" (Backpropagation)
+#### 6.4 The "Learning" (Backpropagation)
 This is the critical part. How does the Attention mechanism get better?
 
 Suppose the **actual** next word in the training sentence is **"on"**.
@@ -1479,26 +1511,25 @@ Suppose the **actual** next word in the training sentence is **"on"**.
 3.  **The Fix (Gradient Descent):** The mathematical signal travels backward to the Attention weights ($W^Q, W^K, W^V$).
     * **The Command:** *"Change the weights so that next time 'sat' matches 'cat' more strongly."*
 
-### Diagram: The Full Training Loop
+#### Diagram: The Full Training Loop
 
-```text
       STEP 1: FORWARD PASS (Making a Guess)
       ─────────────────────────────────────
-      
-      Input: "The cat sat"
-               │
-               ▼
+       
+      Input: "The cat sat" (+ Positional Encoding)
+                 │
+                 ▼
     ┌─────────────────────┐
-    │ ATTENTION MECHANISM │ ◀── The "Lens"
+    │ MULTI-HEAD ATTENTION│ ◀── The "Lens" (x8 Heads)
     │ (Focus on "cat")    │
     └──────────┬──────────┘
-               │ Context Vector (sat + cat)
+               │ (Add & Norm)
                ▼
     ┌─────────────────────┐
     │ FEED-FORWARD NET    │ ◀── The "Brain"
     │ (Process Logic)     │
     └──────────┬──────────┘
-               │
+               │ (Add & Norm)
                ▼
     ┌─────────────────────┐
     │ PREDICTION (Softmax)│
@@ -1530,9 +1561,7 @@ Suppose the **actual** next word in the training sentence is **"on"**.
     "Next time, make the spotlight on 'cat' brighter!"
     "Next time, trust the 'cat' signal more!"
 
-```
-
-### Summary: Why Attention is Vital for Training
+#### Summary: Why Attention is Vital for Training
 
 Without Attention, the model is essentially guessing blindly based on word proximity (like looking only at the word immediately to the left).
 
@@ -1543,72 +1572,5 @@ Without Attention, the model is essentially guessing blindly based on word proxi
 
 **The Bottom Line:**
 Training a Transformer is simply the process of refining these $Q, K, \text{and} V$ matrices millions of times. Eventually, the model's "spotlights" learn to automatically find and focus on the perfect evidence for every single prediction.
-
-
-
-
-
-
-## Part 3: The Transformer
-
-In 2017, the paper *"Attention Is All You Need"* changed everything. They proved we don't need Recurrence (RNNs) at all. We can process the **entire sequence in parallel** using only Attention.
-
-### 1. Positional Encoding
-Since Transformers don't process data in order (no time steps), they have no concept of "first" or "last."
-* **The Fix:** We inject a mathematical pattern (Sines and Cosines) into the input vectors to act as timestamps.
-* *Input = Word Embedding + Positional Encoding.*
-
-### 2. Self-Attention
-This is the heart of the Transformer. Every word in the sentence "looks at" every other word in the sentence to figure out context.
-
-**Example:** "The **animal** didn't cross the **street** because **it** was too tired."
-* When the model processes the word **"it"**, Self-Attention allows it to associate heavily with **"animal"** rather than "street."
-* An RNN would struggle here because "animal" was far back in the past. The Transformer sees the connection instantly.
-
-### 3. Multi-Head Attention
-Why look at the sentence only one way? The Transformer uses multiple sets of Q, K, V matrices (Heads) to look for different types of relationships simultaneously.
-* **Head 1:** Focuses on grammar (Subject-Verb).
-* **Head 2:** Focuses on pronouns (It $\to$ Animal).
-* **Head 3:** Focuses on adjacencies.
-
-### Visualizing the Architecture
-
-The Transformer typically consists of an **Encoder** (reads input) and a **Decoder** (generates output), or just a stack of Decoder layers (like GPT).
-
-```text
-      Input Sequence (All words at once)
-               │
-      ┌────────▼─────────┐
-      │ Positional Embed │  <-- Adds order info
-      └────────┬─────────┘
-               │
-      ┌────────▼─────────┐
-      │  Multi-Head Attn │  <-- "Every word looks at every other word"
-      └────────┬─────────┘      (Computes Q, K, V matrix math)
-               │
-      ┌────────▼─────────┐
-      │ Add & Normalize  │  <-- ResNet style skip connections
-      └────────┬─────────┘
-               │
-      ┌────────▼─────────┐
-      │ Feed Forward Net │  <-- Process features (MLP)
-      └────────┬─────────┘
-               │
-      ┌────────▼─────────┐
-      │ Add & Normalize  │
-      └────────┬─────────┘
-               │
-        Output Probabilities
-```
-
-### Summary Comparison
-
-| Feature | RNN / LSTM | Transformer |
-| :--- | :--- | :--- |
-| **Processing** | Sequential (Iterative) | Parallel (Simultaneous) |
-| **Long-Term Memory** | Poor (Vanishing Gradient) | Perfect (Direct Access via Attention) |
-| **Input handling** | $x_t$ depends on $h_{t-1}$ | All $x$ processed together |
-| **Speed** | Slow training (can't parallelize) | Fast training (GPU friendly) |
-| **Key Component** | Recurrent Loop | Self-Attention Mechanism |
 
 </details>
