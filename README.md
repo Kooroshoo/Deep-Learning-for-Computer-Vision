@@ -1322,34 +1322,40 @@ For every word, the model generates three new vectors (Personas) using learnable
 | **$V$** | **Value** | The content I hold. | The actual text inside the document. |
 
 #### 3.2 The Mechanism: The Spotlight Search
-Let's trace the word **"Sat"** in the sentence *"The cat sat."*
+The goal is to update the vector for **"sat"** by blending it with relevant words.
 
-1.  **The Query ($Q$):** "Sat" broadcasts a query: *"I am an action. I am looking for the actor (noun)."*
-2.  **The Matching ($Q \cdot K$):** This query checks the **Keys ($K$)** of every word in the sentence.
-3.  **The Aggregation (Weighted Sum of $V$):** "Sat" absorbs the **Values ($V$)** based on relevance.
+1.  **Calculate Scores ($Q \times K$):** How relevant is every other word to "sat"?
+2.  **Multiply by Values ($V$):** Mix the content of those words based on the scores.
 
-
-##### Visualizing the "All-at-Once" Matrix
-While we described this word-by-word, the Transformer actually calculates a grid of relationships simultaneously.
+##### Visualizing the Full Matrix Equation ($Scores \times V = Output$)
+Here is how the Attention Scores determine how much of the Value ($V$) we keep.
 
 ```text
-Row = Query (Who is looking?)
-Col = Key (Who is being looked at?)
+      [ ATTENTION SCORES (Weights) ]      [ VALUES (Content) ]       [ OUTPUT (Context) ]
+      (How much to care)                  (What information)         (The Enriched Word)
 
-         │   "The"    │   "cat"    │   "sat"    │
-─────────┼────────────┼────────────┼────────────┤
-Q: "The" │   Self     │   High     │   Low      │
-         │            │  (Object)  │            │
-─────────┼────────────┼────────────┼────────────┤
-Q: "cat" │   High     │   Self     │   High     │
-         │ (Define)   │            │ (Action)   │
-─────────┼────────────┼────────────┼────────────┤
-Q: "sat" │   Low      │   High     │   Self     │ <─ This is the row
-         │            │  (Actor)   │            │    we calculated above
+       Col: "The"  "cat"  "sat"
+      ┌───────┬──────┬──────┐             ┌──────────────┐           ┌──────────────────┐
+Q:The │  0.6  │ 0.3  │ 0.1  │             │ V("The")     │           │ New "The" Vector │
+      ├───────┼──────┼──────┤             ├──────────────┤           ├──────────────────┤
+Q:cat │  0.2  │ 0.7  │ 0.1  │      x      │ V("cat")     │     =     │ New "cat" Vector │
+      ├───────┼──────┼──────┤             ├──────────────┤           ├──────────────────┤
+Q:sat │  0.05 │ 0.80 │ 0.15 │             │ V("sat")     │           │ New "sat" Vector │
+      └───────┴──────┴──────┘             └──────────────┘           └──────────────────┘
+         │                                       ▲
+         └─────────────(Focus on Q:sat)──────────┘
+
+     The Math for "sat":
+     (0.05 × V_The) + (0.80 × V_cat) + (0.15 × V_sat)  =  New "sat" Vector
+     [Tiny bit]     + [HUGE CHUNK]   + [Small bit]
 ```
+
+
 
 > **The Formula (Scaled Dot-Product Attention):**
 > $$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
+>
+> *Note on $\sqrt{d_k}$: This represents the dimension size of the Key vectors. We divide by it to scale the numbers down. If we didn't, the Softmax function would output extreme values (e.g., 100% vs 0%), killing the gradient and stopping the model from learning.*
 
 
 ### 4. Scaling Up: Multi-Head Attention
