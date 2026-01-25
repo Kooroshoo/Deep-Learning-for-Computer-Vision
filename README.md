@@ -928,7 +928,7 @@ Because the **same Filter ($K$)** slides over the whole image:
 
 
 <details>
-<summary><h2><b> Sequence Modeling with Neural Networks </b></h2></summary>
+<summary><h2><b> Recurrent Neural Networks (RNNs) </b></h2></summary>
 <br>
 
 In Convolutional Neural Networks (CNNs), we learned how to handle **Spatial** data (images) using grids. But what happens when the data is **Sequential** (Time-Series, Text, Audio)?
@@ -937,8 +937,6 @@ In Convolutional Neural Networks (CNNs), we learned how to handle **Spatial** da
 * **The Context:** To understand a current word, you often need to remember what happened at the very beginning of the sentence. Standard MLPs and CNNs have no "memory" of the past; they process inputs in isolation.
 
 **Sequence Models** are designed to handle variable-length sequences ($x_1, x_2, \dots, x_t$) and maintain a "state" of history.
-
-## Recurrent Neural Networks (RNNs)
 
 The fundamental idea of an RNN is **Persistence**. It processes data step-by-step, maintaining a "Hidden State" (memory) that acts as a summary of everything it has seen so far.
 
@@ -1268,8 +1266,13 @@ RNNs suffer from "Short-term Memory." As information propagates through time, gr
 * **The Result:** The network forgets early inputs. In a long paragraph, it might forget the subject of the sentence by the time it reaches the verb.
 * *Patch Solution:* **LSTMs (Long Short-Term Memory)** and **GRUs** introduced "gates" to explicitly decide what to remember and what to forget, but they are still slow because they must process data **sequentially** (step 1, then step 2, etc.).
 
+</details>
 
-## The Transformer Architecture
+
+<details>
+<summary><h2><b> The Transformer Architecture </b></h2></summary>
+<br>
+
 
 To solve the bottleneck of processing things one-by-one, researchers asked: *"What if, instead of remembering a compressed history, the model could look at the **entire** source sentence at once?"*
 
