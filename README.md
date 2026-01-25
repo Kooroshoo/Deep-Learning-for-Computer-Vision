@@ -1393,6 +1393,14 @@ We take the **Values** (content) and combine them based on the brightness.
                        │      "sat"      │
                        └─────────────────┘
 
+> **Why this matters**
+>By the time the data leaves this block, there are no longer isolated words.
+>The vector  is no longer just "sat". It is a **hologram** of the entire event ("Cat-sitting-action").
+
+> **Why is this better than RNNs?**
+> In an RNN, the word "sat" only knew about "cat" because "cat" came *before* it.
+> In Attention, "sat" knows about "cat" because it **chose** to look at it. It is an active, intelligent selection of context.
+
 
 ### 5. The "All-at-Once" View (Matrix Multiplication)
 
