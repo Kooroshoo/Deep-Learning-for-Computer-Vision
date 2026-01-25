@@ -1289,10 +1289,10 @@ Older models (RNNs/LSTMs) processed data strictly in order (Time Step 1 $\righta
 The Transformer abandons the relay race. It drops the entire sentence into a "room" at once. Every word processes its relationship with every other word **simultaneously**.
 * **Visual:**
     ```text
-    [The] <---> [sat]
-      ^         ^
-       \       /
-        [cat]
+           [ The ]
+           /     \
+          /       \
+     [ cat ] <──> [ sat ]
     ```
     *(Every word is directly connected to every other word; distance is zero.)*
 
