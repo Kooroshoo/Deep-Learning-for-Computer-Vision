@@ -1558,15 +1558,25 @@ This $O(N^2)$ complexity is exactly why standard Transformers couldn't originall
 #### 11.1 The Solution: Patching
 To solve this, researchers (ViT paper) treated images as "sentences of patches" rather than "sentences of pixels."
 
+* **Old Way (CNNs):** Slide a filter over the image pixel-by-pixel to find edges and textures.
+* **New Way (ViT):** Cut the image into a fixed grid (patches), turn them into a sequence, and let the Transformer figure out the relationships using Attention.
+
 ```text
-ORIGINAL IMAGE (e.g., A Dog)      SLICE & FLATTEN (Sequence of Patches)
-┌──────────┬──────────┐           ┌──────┐   ┌──────┐   ┌──────┐
-│ (Face)   │ (Sky)    │           │  P1  │   │  P2  │   │  P3  │ ...
-│ Patch 1  │ Patch 2  │    ==>    │(Face)│   │(Sky) │   │(Legs)│
-├──────────┼──────────┤           └──────┘   └──────┘   └──────┘
-│ (Legs)   │ (Grass)  │              ▲
-│ Patch 3  │ Patch 4  │              │
-└──────────┴──────────┘       To the model, P1 is just a "word" vector.
+STEP 1: THE "CHOP" (2D Grid)             STEP 2: THE "SEQUENCE" (1D Line)
+We slice the image into fixed squares.   We arrange them in a single line.
+
+  ORIGINAL IMAGE (e.g., A Dog)             SLICE & FLATTEN (Sequence)
+ ┌──────────────┬──────────────┐
+ │              │              │          ┌──────┐  ┌──────┐  ┌──────┐
+ │   (Face)     │    (Sky)     │          │  P1  │  │  P2  │  │  P3  │ ...
+ │   Patch 1    │   Patch 2    │   ===>   │(Face)│  │(Sky) │  │(Legs)│
+ │              │              │          └──────┘  └──────┘  └──────┘
+ ├──────────────┼──────────────┤             ▲         ▲         ▲
+ │              │              │             │         │         │
+ │   (Legs)     │   (Grass)    │        To the model, these are now just
+ │   Patch 3    │   Patch 4    │        "words" in a sentence.
+ │              │              │        P1 comes before P2.
+ └──────────────┴──────────────┘
 ```
 
 #### 11.2 The ViT Architecture
