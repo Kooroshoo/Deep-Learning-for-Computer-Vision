@@ -1458,58 +1458,134 @@ Deep networks can "forget" the original input if processed too much.
 
 ### 6. The Architecture: Encoder vs. Decoder
 
+We have discussed the "bricks" (Attention, Feed-Forward). Now, let's look at the "building."
 The Transformer combines these blocks into a structure defined by **Depth** (Layers) and **Flow** (Encoder-Decoder).
 
 #### 6.1 The Vertical Stack
-We stack these layers on top of each other. Lower layers learn grammar; higher layers learn concepts like irony or intent.
+We stack these layers on top of each other (e.g., 6 layers in the original paper, 96 in GPT-3).
+* **Lower Layers:** Learn syntax and grammar (e.g., "The" is usually followed by a noun).
+* **Higher Layers:** Learn abstract concepts like irony, intent, or complex reasoning.
 
 #### 6.2 The Full Map (Encoder-Decoder)
-For tasks like translation, we split the model into two towers.
+For tasks like translation, we split the model into two towers: the **Reader** and the **Writer**.
 
 ```text
-           ENCODER (English)                     DECODER (French)
-         (Reads "The cat sat")                 (Generates "Le chat")
-       ┌────────────────────┐                ┌────────────────────┐
-       │    Output Layer    │                │    Output Prob.    │
-       ├────────────────────┤                ├────────────────────┤
-       │  Feed Forward Net  │                │  Feed Forward Net  │
-       ├────────────────────┤                ├────────────────────┤
-       │     Add & Norm     │    CONTEXT     │     Add & Norm     │
-       ├────────────────────┤     BRIDGE     ├────────────────────┤
-       │   Self-Attention   │───────────────▶│  Cross-Attention   │ ◀── THE KEY LINK
-       │ (Look at English)  │                │ (Look at Encoder)  │
-       ├────────────────────┤                ├────────────────────┤
-       │     Add & Norm     │                │     Add & Norm     │
-       ├────────────────────┤                ├────────────────────┤
-       │   Positional Enc.  │                │  Masked Attention  │ ◀── THE BLINDER
-       └────────────────────┘                └────────────────────┘
+       ENCODER (The Reader)                  DECODER (The Writer)
+      (Input: "The cat sat")                (Input: "Le chat...")
+    ┌───────────────────────┐             ┌───────────────────────┐
+    │     Output Vector     │             │  Probabilities (Softmax)
+    ├───────────────────────┤             ├───────────────────────┤
+    │   Feed Forward Net    │             │   Feed Forward Net    │
+    ├───────────────────────┤             ├───────────────────────┤
+    │      Add & Norm       │   CONTEXT   │      Add & Norm       │
+    ├───────────────────────┤    BRIDGE   ├───────────────────────┤
+    │    Self-Attention     │────────────▶│    Cross-Attention    │ ◀── THE KEY LINK
+    │   (Look at English)   │             │   (Look at Encoder)   │
+    ├───────────────────────┤             ├───────────────────────┤
+    │      Add & Norm       │             │      Add & Norm       │
+    ├───────────────────────┤             ├───────────────────────┤
+    │    Positional Enc.    │             │   Masked Attention    │ ◀── THE BLINDER
+    └───────────────────────┘             └───────────────────────┘
 ```
 
 
 ### 7. The Decoder's Special Mechanisms
 
-The Decoder has to generate text without cheating.
+The Encoder can look at the whole sentence at once. The Decoder, however, has stricter rules. It must generate text one word at a time without "cheating."
 
 #### A. Masked Self-Attention (The Blinders)
-When training to translate "The cat sat" $\rightarrow$ "Le chat...", the Decoder processes "Le".
-* **Problem:** If it can "see" the next word ("chat"), it will just copy it.
-* **Solution:** We apply a **Mask** (set future scores to $-\infty$). The model can look at past words ("Le") but sees a black wall where future words ("chat") should be.
+When training to translate *"The cat sat"* $\rightarrow$ *"Le chat assis"*, the Decoder processes the inputs step-by-step.
+* **The Problem:** If the model processes "Le", it shouldn't be allowed to "see" the next word ("chat") in the training data, or it will just copy it without learning grammar.
+* **The Solution:** We apply a **Mask**. We mathematically set the attention scores of all future words to $-\infty$.
+* **Visual:** The model can look at past words ("Le") but sees a "black wall" where future words should be.
 
 #### B. Cross-Attention (The Bridge)
-This is where the Translation happens. It connects the Decoder (Writer) to the Encoder (Reader).
+This is the magical step where Translation actually happens. It connects the Decoder (Writer) to the Encoder (Reader).
+* **Query ($Q$):** Comes from the **Decoder**. *"I have just written 'Le'. What is the subject?"*
+* **Key ($K$) & Value ($V$):** Come from the **Encoder** (The English sentence memory).
+* **The Result:** The Spotlight Search scans the English sentence, finds "cat" (High Attention Score), and passes that concept to the Decoder so it knows to predict "chat".
 
-1.  **Query ($Q$):** Comes from the **Decoder**. *"I have written 'Le'. What concept describes this masculine noun?"*
-2.  **Key ($K$) & Value ($V$):** Come from the **Encoder** (The English sentence).
-3.  **The Result:** The Spotlight hits "cat" in the English memory. The Decoder absorbs that concept and predicts "chat".
+
+### 8. The Output: Making a Prediction
+
+Once the information has passed through the Cross-Attention and Feed-Forward blocks, we need to produce a word.
+
+#### 8.1 The Vocabulary Projection & Softmax
+The model outputs a final vector which is projected against the entire vocabulary (e.g., 50,000 words). The **Softmax** function converts these raw scores into probabilities.
+
+```text
+Final Vector ──> [ Linear Layer ] ──> [ Softmax ] ──> [ Probabilities ]
+                                                          ┌─────────────┐
+                                                          │ "apple": 2% │
+                                                          │ "sat":  85% │ <─ WINNER
+                                                          │ "car":  0.1%│
+                                                          └─────────────┘
+```
 
 
-### 8. Summary: The Computational Price
+### 9. Training: How the Model "Learns" W
 
-The Transformer is powerful because it connects everything to everything. However, this comes at a cost.
+The model isn't magic; it's an optimization engine. It learns the weights ($W_Q, W_K, W_V$) through a cycle of trial and error called **Backpropagation**.
 
-* **The Complexity:** $O(N^2)$
-* **Why:** If you double the sentence length, the number of attention calculations quadruples (because *every* new word must handshake with *every* old word).
+#### The Optimization Loop
+The goal is to minimize **Loss** (a mathematical measure of "surprise").
+1.  **Forward (Guess):** The model predicts "Toaster" (Wrong!).
+2.  **Loss (Score):** Error is high because the truth was "Sat".
+3.  **Backward (Blame):** We trace the error back to find which weights caused the mistake.
+4.  **Update (Fix):** We nudge the weights slightly to fix the error.
 
-This quadratic complexity is the primary bottleneck for Context Window size in modern LLMs.
+*Repeat this billions of times until the error is near zero.*
+
+
+### 10. Summary: The Computational Price
+
+The Transformer is powerful because it connects "everything to everything." However, this comes at a cost.
+
+#### The Complexity: $O(N^2)$
+* **Why:** If you double the sentence length ($N$), the number of attention calculations quadruples.
+* **Mechanism:** Every new word must handshake with every old word.
+    * 10 words = 100 checks.
+    * 100 words = 10,000 checks.
+* **Consequence:** This quadratic complexity is the primary bottleneck for the "Context Window" size in modern LLMs.
+
+
+### 11. Expansion: Vision Transformers (ViT)
+
+This $O(N^2)$ complexity is exactly why standard Transformers couldn't originally handle images.
+* A small image (224x224) has 50,176 pixels.
+* $50,176^2 = 2.5 \text{ Billion}$ calculations. **Impossible.**
+
+#### 11.1 The Solution: Patching
+To solve this, researchers (ViT paper) treated images as "sentences of patches" rather than "sentences of pixels."
+
+```text
+ORIGINAL IMAGE (e.g., A Dog)      SLICE & FLATTEN (Sequence of Patches)
+┌──────────┬──────────┐           ┌──────┐   ┌──────┐   ┌──────┐
+│ (Face)   │ (Sky)    │           │  P1  │   │  P2  │   │  P3  │ ...
+│ Patch 1  │ Patch 2  │    ==>    │(Face)│   │(Sky) │   │(Legs)│
+├──────────┼──────────┤           └──────┘   └──────┘   └──────┘
+│ (Legs)   │ (Grass)  │              ▲
+│ Patch 3  │ Patch 4  │              │
+└──────────┴──────────┘       To the model, P1 is just a "word" vector.
+```
+
+#### 11.2 The ViT Architecture
+We feed these patch vectors into the standard Transformer (now feasible because 256 patches is much smaller than 50,000 pixels). We add a special **[CLS] Token** to aggregate the information.
+
+```text
+                   [ CLASSIFICATION HEAD ] -> "Dog" (98%)
+                             ▲
+                             │
+           ┌─────────────────────────────────────┐
+           │     TRANSFORMER ENCODER LAYERS      │
+           │ (Self-Attention: Face attends to Leg)
+           └─────────────────┬───────────────────┘
+               ^             ^             ^
+               │             │             │
+           [ CLS ]        [ P1 ]        [ P2 ] ...
+           (Token)        (Face)        (Sky)
+```
+
+**Final Takeaway:** Whether it's a word in a sentence or a patch in an image, the Transformer uses **Attention** to dynamically focus on what matters, ignoring the noise.
 
 </details>
