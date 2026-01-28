@@ -1468,7 +1468,7 @@ We can assemble Attention blocks in three distinct ways depending on who needs t
 | :--- | :--- | :--- | :--- | :--- |
 | **Encoder-Only** | **Bidirectional** | Everyone $\leftrightarrow$ Everyone | Understanding | BERT |
 | **Decoder-Only** | **Causal (Masked)** | Future $\nleftarrow$ Past | Generation | GPT, Llama |
-| **Encoder-Decoder**| **Cross-Attention** | Encoder $\rightarrow$ Decoder | Translation | Transformer, T5, Whisper |
+| **Encoder-Decoder**| **Cross-Attention** | Encoder $\rightarrow$ Decoder | Translation | **Original Transformer**, T5, Whisper |
 
 ### 6.1 Bidirectional Attention (The Reader)
 * **Structure:** Every word can attend to every other word (left and right) simultaneously.
@@ -1497,41 +1497,21 @@ Once the information has passed through the Cross-Attention and Feed-Forward blo
 
 The model outputs a final vector which is projected against the entire vocabulary (e.g., 50,000 words). The **Softmax** function converts these raw scores into probabilities.
 
-The model isn't magic; it's an optimization engine. It learns the weights ($W_Q, W_K, W_V$) through a cycle of trial and error called **Backpropagation**.
-
-#### The Optimization Loop
-The goal is to minimize **Loss** (a mathematical measure of "surprise").
-1.  **Forward (Guess):** The model predicts "Toaster" (Wrong!).
-2.  **Loss (Score):** Error is high because the truth was "Sat".
-3.  **Backward (Blame):** We trace the error back to find which weights caused the mistake.
-4.  **Update (Fix):** We nudge the weights slightly to fix the error.
-
-*Repeat this billions of times until the error is near zero.*
+The model isn't magic; it's an optimization engine. It learns the weights ($W_Q, W_K, W_V$) through **Backpropagation** (*Repeat this billions of times until the error is near zero*).
 
 
-### 8. Summary: The Computational Price
+### 8. Expansion: Visual Attention (ViT)
 
-Attention is powerful because it connects "everything to everything." However, this comes at a cost.
+The Attention mechanism is not limited to text. It is a general-purpose engine for finding relationships. However, applying it to images faced a mathematical wall.
 
-#### The Complexity: $O(N^2)$
-* **Why:** If you double the sentence length ($N$), the number of attention calculations quadruples.
-* **Mechanism:** Every new word must handshake with every old word.
-    * 10 words = 100 checks.
-    * 100 words = 10,000 checks.
-* **Consequence:** This quadratic complexity is the primary bottleneck for the "Context Window" size in modern LLMs.
+#### 8.1 The Complexity Barrier: $O(N^2)$
+Attention connects every unit to every other unit.
+* **Text:** A sentence has ~50 words. $50^2 = 2,500$ calculations. (Easy)
+* **Vision:** A small image (224x224) has 50,176 pixels. $50,176^2 = 2.5 \text{ Billion}$ calculations. (**Impossible**)
 
-
-### 9. Expansion: Vision Transformers (ViT)
-
-This $O(N^2)$ complexity is exactly why standard Transformers couldn't originally handle images.
-* A small image (224x224) has 50,176 pixels.
-* $50,176^2 = 2.5 \text{ Billion}$ calculations. **Impossible.**
-
-#### 9.1 The Solution: Patching
-To solve this, researchers (ViT paper) treated images as "sentences of patches" rather than "sentences of pixels."
-
-* **Old Way (CNNs):** Slide a filter over the image pixel-by-pixel to find edges and textures.
-* **New Way (ViT):** Cut the image into a fixed grid (patches), turn them into a sequence, and let the Transformer figure out the relationships using Attention.
+#### 8.2 The Solution: Patching
+To fix this, we don't treat pixels as "words." We treat **patches** as words.
+By cutting the image into a 16x16 grid, we reduce the sequence length from 50,000 pixels to just **256 patches**. Now, Attention is feasible.
 
 ```text
 STEP 1: THE "CHOP" (2D Grid)             STEP 2: THE "SEQUENCE" (1D Line)
@@ -1543,24 +1523,30 @@ We slice the image into fixed squares.   We arrange them in a single line.
  │   (Face)     │    (Sky)     │          │  P1  │  │  P2  │  │  P3  │ ...
  │   Patch 1    │   Patch 2    │   ===>   │(Face)│  │(Sky) │  │(Legs)│
  │              │              │          └──────┘  └──────┘  └──────┘
- ├──────────────┼──────────────┤             ▲         ▲         ▲
- │              │              │             │         │         │
- │   (Legs)     │   (Grass)    │        To the model, these are now just
- │   Patch 3    │   Patch 4    │        "words" in a sentence.
- │              │              │        P1 comes before P2.
+ ├──────────────┼──────────────┤              ▲         ▲         ▲
+ │              │              │              │         │         │
+ │   (Legs)     │   (Grass)    │         To the model, these are now just
+ │   Patch 3    │   Patch 4    │        "words" (tokens) to attend to.
+ │              │              │
  └──────────────┴──────────────┘
 ```
 
-#### 9.2 The ViT Architecture
-We feed these patch vectors into the standard Transformer (now feasible because 256 patches is much smaller than 50,000 pixels). We add a special **[CLS] Token** to aggregate the information.
+#### 8.3 The Result: Global Attention
+Once the image is a sequence of patches, the **Self-Attention** mechanism does something CNNs (Convolutional Neural Networks) struggled to do: **Global Context**.
+
+* **CNNs (Local):** Look at pixels through a tiny window. They only see immediate neighbors.
+* **ViT (Global):** Patch 1 (Top-Left) can directly attend to Patch 256 (Bottom-Right).
+    * *Example:* The model can instantly link a "Dog Ear" patch to a "Dog Tail" patch to understand the concept "Dog," even if they are far apart in the image.
+
+
 
 ```text
                    [ CLASSIFICATION HEAD ] -> "Dog" (98%)
                              ▲
                              │
            ┌─────────────────────────────────────┐
-           │     TRANSFORMER ENCODER LAYERS      │
-           │ (Self-Attention: Face attends to Leg)
+           │        SELF-ATTENTION LAYERS        │
+           │  (Finding patterns across space)    │
            └─────────────────┬───────────────────┘
                ^             ^             ^
                │             │             │
@@ -1568,6 +1554,6 @@ We feed these patch vectors into the standard Transformer (now feasible because 
            (Token)        (Face)        (Sky)
 ```
 
-**Final Takeaway:** Whether it's a word in a sentence or a patch in an image, the Transformer uses **Attention** to dynamically focus on what matters, ignoring the noise.
+**Final Takeaway:** Whether it's a word in a sentence or a patch in an image, **Attention** allows the model to dynamically focus on the relevant parts of the input, ignoring the noise.
 
 </details>
