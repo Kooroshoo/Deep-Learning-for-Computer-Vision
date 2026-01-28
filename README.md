@@ -1270,7 +1270,7 @@ RNNs suffer from "Short-term Memory." As information propagates through time, gr
 
 
 <details>
-<summary><h2><b> The Transformer Architecture </b></h2></summary>
+<summary><h2><b> Attention Based Networks </b></h2></summary>
 
 
 To solve the bottleneck of processing language word-by-word, researchers asked: *"What if, instead of remembering a compressed history, the model could look at the **entire** source sentence at once?"*
@@ -1278,15 +1278,18 @@ To solve the bottleneck of processing language word-by-word, researchers asked: 
 
 ### 1. The Motivation: Breaking the Bottleneck
 
-To understand the Transformer, we must first understand the problem it solved: **Sequential Processing.**
+To understand Attention, we must first understand the limitation of previous models: **Sequential Processing.**
 
-#### 1.1 The Old Way: RNNs (The Relay Race)
-Older models (RNNs/LSTMs) processed data strictly in order (Time Step 1 $\rightarrow$ 2 $\rightarrow$ 3). To understand the last word, the model had to wait for information to "pass" through every previous word.
-* **The Problem:** It is slow (cannot run on parallel GPU threads) and "forgetful" (information from the start of a long sentence fades by the end).
-* **Visual:** `[The] -> [cat] -> [sat] -> ...` (If the chain breaks, context is lost).
+#### 1.1 The Old Way: RNNs (The "Telephone Game")
+Older models processed data strictly in a line, one step at a time (Word A $\rightarrow$ Word B $\rightarrow$ Word C).
+* **The Bottleneck:** To understand the end of a sentence, the model had to wait for context to be passed down the chain. Like a game of "Telephone," information often got distorted or forgotten over long distances.
+* **The Cost:** It was slow. Because Step 2 depended on Step 1, the model could not use parallel computing (GPUs).
 
-#### 1.2 The New Way: The Transformer (The Group Discussion)
-The Transformer abandons the relay race. It drops the entire sentence into a "room" at once. Every word processes its relationship with every other word **simultaneously**.
+#### 1.2 The New Way: Attention (The "Round Table")
+Attention abandons the line. It drops the entire sentence into a "room" at once.
+* **The Solution:** Every word looks at every other word **simultaneously**. The first word can talk directly to the last word without passing through intermediaries.
+* **The Result:** No information is lost (perfect memory) and the model can be trained massively faster because it processes everything in parallel.
+
 * **Visual:**
     ```text
            [ The ]
@@ -1456,74 +1459,43 @@ Deep networks can "forget" the original input if processed too much.
 * **Benefit:** Prevents values from exploding (becoming too huge) or vanishing (becoming too small), making training stable.
 
 
-### 6. The Architecture: Encoder vs. Decoder
+### 6. Attention Architectures
 
-We have discussed the "bricks" (Attention, Feed-Forward). Now, let's look at the "building."
-The Transformer combines these blocks into a structure defined by **Depth** (Layers) and **Flow** (Encoder-Decoder).
-
-#### 6.1 The Vertical Stack
-We stack these layers on top of each other (e.g., 6 layers in the original paper, 96 in GPT-3).
-* **Lower Layers:** Learn syntax and grammar (e.g., "The" is usually followed by a noun).
-* **Higher Layers:** Learn abstract concepts like irony, intent, or complex reasoning.
-
-#### 6.2 The Full Map (Encoder-Decoder)
-For tasks like translation, we split the model into two towers: the **Reader** and the **Writer**.
-
-```text
-       ENCODER (The Reader)                  DECODER (The Writer)
-      (Input: "The cat sat")                (Input: "Le chat...")
-    ┌───────────────────────┐             ┌───────────────────────┐
-    │     Output Vector     │             │  Probabilities (Softmax)
-    ├───────────────────────┤             ├───────────────────────┤
-    │   Feed Forward Net    │             │   Feed Forward Net    │
-    ├───────────────────────┤             ├───────────────────────┤
-    │      Add & Norm       │   CONTEXT   │      Add & Norm       │
-    ├───────────────────────┤    BRIDGE   ├───────────────────────┤
-    │    Self-Attention     │────────────▶│    Cross-Attention    │ ◀── THE KEY LINK
-    │   (Look at English)   │             │   (Look at Encoder)   │
-    ├───────────────────────┤             ├───────────────────────┤
-    │      Add & Norm       │             │      Add & Norm       │
-    ├───────────────────────┤             ├───────────────────────┤
-    │    Positional Enc.    │             │   Masked Attention    │ ◀── THE BLINDER
-    └───────────────────────┘             └───────────────────────┘
-```
+We can assemble Attention blocks in three distinct ways depending on who needs to look at whom.
 
 
-### 7. The Decoder's Special Mechanisms
+| Architecture | Attention Style | Visual Structure | Use Case | Examples |
+| :--- | :--- | :--- | :--- | :--- |
+| **Encoder-Only** | **Bidirectional** | Everyone $\leftrightarrow$ Everyone | Understanding | BERT |
+| **Decoder-Only** | **Causal (Masked)** | Future $\nleftarrow$ Past | Generation | GPT, Llama |
+| **Encoder-Decoder**| **Cross-Attention** | Encoder $\rightarrow$ Decoder | Translation | Transformer, T5, Whisper |
 
-The Encoder can look at the whole sentence at once. The Decoder, however, has stricter rules. It must generate text one word at a time without "cheating."
+### 6.1 Bidirectional Attention (The Reader)
+* **Structure:** Every word can attend to every other word (left and right) simultaneously.
+* **Goal:** To build a complete mental model of the text.
+* **Mechanism:** Standard Self-Attention (No masks).
 
-#### A. Masked Self-Attention (The Blinders)
-When training to translate *"The cat sat"* $\rightarrow$ *"Le chat assis"*, the Decoder processes the inputs step-by-step.
-* **The Problem:** If the model processes "Le", it shouldn't be allowed to "see" the next word ("chat") in the training data, or it will just copy it without learning grammar.
-* **The Solution:** We apply a **Mask**. We mathematically set the attention scores of all future words to $-\infty$.
-* **Visual:** The model can look at past words ("Le") but sees a "black wall" where future words should be.
+### 6.2 Causal Attention (The Writer)
+* **Structure:** Words can only attend to previous words. The future is hidden.
+* **Goal:** To generate text one word at a time.
+* **The Mechanism: Masking**
+    * We apply a **Mask** (a lower-triangular matrix) that sets future attention scores to $-\infty$.
+    * **Visual:** `[A] [B] [C]` can see `[A] [B] [C]`. But `[A]` cannot see `[B]`.
 
-#### B. Cross-Attention (The Bridge)
-This is the magical step where Translation actually happens. It connects the Decoder (Writer) to the Encoder (Reader).
-* **Query ($Q$):** Comes from the **Decoder**. *"I have just written 'Le'. What is the subject?"*
-* **Key ($K$) & Value ($V$):** Come from the **Encoder** (The English sentence memory).
-* **The Result:** The Spotlight Search scans the English sentence, finds "cat" (High Attention Score), and passes that concept to the Decoder so it knows to predict "chat".
+### 6.3 Cross-Attention (The Bridge)
+* **Structure:** A hybrid where a "Writer" (Decoder) generates text while constantly looking back at a "Reader" (Encoder).
+* **Goal:** Sequence-to-Sequence tasks (e.g., translating English to French).
+* **The Mechanism: The Bridge**
+    * **Query ($Q$):** Comes from the **Decoder** ("I'm generating the translation... what's relevant?").
+    * **Key ($K$) & Value ($V$):** Come from the **Encoder** (The original source sentence).
+    * **Result:** The Decoder uses the $Q$ to spotlight the original text ($K/V$) to ensure the translation is accurate.
 
 
-### 8. The Output: Making a Prediction
+### 7. Training: How the Model "Learns"
 
 Once the information has passed through the Cross-Attention and Feed-Forward blocks, we need to produce a word.
 
-#### 8.1 The Vocabulary Projection & Softmax
 The model outputs a final vector which is projected against the entire vocabulary (e.g., 50,000 words). The **Softmax** function converts these raw scores into probabilities.
-
-```text
-Final Vector ──> [ Linear Layer ] ──> [ Softmax ] ──> [ Probabilities ]
-                                                          ┌─────────────┐
-                                                          │ "apple": 2% │
-                                                          │ "sat":  85% │ <─ WINNER
-                                                          │ "car":  0.1%│
-                                                          └─────────────┘
-```
-
-
-### 9. Training: How the Model "Learns" W
 
 The model isn't magic; it's an optimization engine. It learns the weights ($W_Q, W_K, W_V$) through a cycle of trial and error called **Backpropagation**.
 
@@ -1537,9 +1509,9 @@ The goal is to minimize **Loss** (a mathematical measure of "surprise").
 *Repeat this billions of times until the error is near zero.*
 
 
-### 10. Summary: The Computational Price
+### 8. Summary: The Computational Price
 
-The Transformer is powerful because it connects "everything to everything." However, this comes at a cost.
+Attention is powerful because it connects "everything to everything." However, this comes at a cost.
 
 #### The Complexity: $O(N^2)$
 * **Why:** If you double the sentence length ($N$), the number of attention calculations quadruples.
@@ -1549,13 +1521,13 @@ The Transformer is powerful because it connects "everything to everything." Howe
 * **Consequence:** This quadratic complexity is the primary bottleneck for the "Context Window" size in modern LLMs.
 
 
-### 11. Expansion: Vision Transformers (ViT)
+### 9. Expansion: Vision Transformers (ViT)
 
 This $O(N^2)$ complexity is exactly why standard Transformers couldn't originally handle images.
 * A small image (224x224) has 50,176 pixels.
 * $50,176^2 = 2.5 \text{ Billion}$ calculations. **Impossible.**
 
-#### 11.1 The Solution: Patching
+#### 9.1 The Solution: Patching
 To solve this, researchers (ViT paper) treated images as "sentences of patches" rather than "sentences of pixels."
 
 * **Old Way (CNNs):** Slide a filter over the image pixel-by-pixel to find edges and textures.
@@ -1579,7 +1551,7 @@ We slice the image into fixed squares.   We arrange them in a single line.
  └──────────────┴──────────────┘
 ```
 
-#### 11.2 The ViT Architecture
+#### 9.2 The ViT Architecture
 We feed these patch vectors into the standard Transformer (now feasible because 256 patches is much smaller than 50,000 pixels). We add a special **[CLS] Token** to aggregate the information.
 
 ```text
